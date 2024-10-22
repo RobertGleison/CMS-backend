@@ -12,7 +12,11 @@ import java.util.ArrayList;
 @Service
 public class InternetArchiveService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
+
+    public InternetArchiveService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
 
     public VideoMetadata getMetadata(String identifier) throws IOException {
         String metadataUrl = String.format("https://archive.org/metadata/%s", identifier);
@@ -25,13 +29,19 @@ public class InternetArchiveService {
         videoMetadata.setYear(metadata.optString("year", ""));
         videoMetadata.setCreator(metadata.optString("creator", ""));
         videoMetadata.setRuntime(metadata.optString("runtime", ""));
+        videoMetadata.setThumbnailUrl("");
+        videoMetadata.setVideoUrl("");
+//        videoMetadata.setGenre());
+
+
+
 
         // Handle genre/subject as array
-        if (metadata.has("subject")) {
-            ArrayList<String> genres = new ArrayList<>();
-            metadata.getJSONArray("subject").forEach(item -> genres.add(item.toString()));
-            videoMetadata.setGenre(genres);
-        }
+//        if (metadata.has("subject")) {
+//            ArrayList<String> genres = new ArrayList<>();
+//            metadata.getJSONArray("subject").forEach(item -> genres.add(item.toString()));
+//            videoMetadata.setGenre(genres);
+//        }
 
         return videoMetadata;
     }

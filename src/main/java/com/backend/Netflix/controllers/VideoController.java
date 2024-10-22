@@ -2,6 +2,7 @@ package com.backend.Netflix.controllers;
 
 import com.backend.Netflix.model.VideoMetadata;
 import com.backend.Netflix.services.VideoProcessingService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -10,11 +11,9 @@ import java.io.IOException;
 @RequestMapping("/api/videos")
 public class VideoController {
 
-    private final VideoProcessingService videoProcessingService;
+    @Autowired
+    private VideoProcessingService videoProcessingService;
 
-    public VideoController(VideoProcessingService videoProcessingService) {
-        this.videoProcessingService = videoProcessingService;
-    }
 
     @PostMapping("/process/{identifier}")
     public VideoMetadata processVideo(@PathVariable String identifier) throws IOException {
