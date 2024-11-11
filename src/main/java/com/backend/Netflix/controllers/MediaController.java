@@ -1,75 +1,67 @@
 package com.backend.Netflix.controllers;
 
-import com.backend.Netflix.model.VideoMetadata;
-import com.backend.Netflix.services.VideoProcessingService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+
+import com.backend.Netflix.model.Media;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/media")
 public class MediaController {
 
-    private static final Logger logger = LoggerFactory.getLogger(MediaController.class);
-
-    @Autowired
-    private VideoProcessingService videoService;
-
-
-
     @PostMapping(value = "/upload",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
-            produces = MediaType.APPLICATION_JSON_VALUE)
+            consumes = {MediaType.MULTIPART_FORM_DATA_VALUE},
+            produces = {MediaType.APPLICATION_JSON_VALUE})
     public ResponseEntity<?> processVideo(
-            @RequestPart(value = "videoFile", required = true) MultipartFile videoFile,
-            @RequestPart(value = "thumbnail", required = true) MultipartFile thumbnail,
-            @RequestPart(value = "title") String movieTitle,
-            @RequestPart(value = "description") String movieDescription,
-            @RequestPart(value = "genre") String movieGenre,
-            @RequestPart(value = "publisher") String movieCreator,
-            @RequestPart(value = "duration") String movieDuration
+            @RequestParam("videoPart") MultipartFile videoFile,
+            @RequestParam("thumbnailPart") MultipartFile thumbnail,
+            @RequestParam("titleBody") String title,
+            @RequestParam("descriptionBody") String description,
+            @RequestParam("genreBody") String genre,
+            @RequestParam("yearBody") Integer year,
+            @RequestParam("publisherBody") String publisher,
+            @RequestParam("durationBody") Integer duration
     ) {
-
         try {
-            if (!videoFile.getContentType().startsWith("video/")) {
-                return ResponseEntity.badRequest()
-                        .body("Invalid video file format. Only video files are allowed.");
-            }
+            // Log incoming request details
+            System.out.println("Received file upload request");
+            System.out.println("Video file name: " + videoFile.getOriginalFilename());
+            System.out.println("Video content type: " + videoFile.getContentType());
 
-            if (!thumbnail.getContentType().startsWith("image/")) {
-                return ResponseEntity.badRequest()
-                        .body("Invalid thumbnail format. Only image files are allowed.");
-            }
+            Media media = new Media(
+                    UUID.randomUUID(),
+                    title,
+                    description,
+                    genre,
+                    year,
+                    publisher,
+                    duration,
+                    "popeye_e_os_40_abacates.jpg",
+                    "s3://bucket/popeye_e_os_40_abacates.mp4",
+                    LocalDateTime.of(2001, 3, 23, 0, 0
+                    ));
 
-            // Validate file sizes
-            long maxVideoSize = 1024 * 1024 * 500; // 500MB
-            long maxThumbnailSize = 1024 * 1024 * 10; // 10MB
-
-            if (videoFile.getSize() > maxVideoSize) {
-                return ResponseEntity.badRequest()
-                        .body("Video file size exceeds maximum limit of 500MB");
-            }
-
-            if (thumbnail.getSize() > maxThumbnailSize) {
-                return ResponseEntity.badRequest()
-                        .body("Thumbnail size exceeds maximum limit of 5MB");
-            }
-            VideoMetadata metadata = new VideoMetadata(movieTitle, movieDescription, movieGenre, movieCreator, movieDuration);
-            // Process the upload using service layer
-//            VideoMetadata savedVideo = videoService.processVideoUpload(videoFile, thumbnail, metadata);
-            System.out.println(metadata);
-
-//            logger.info("Successfully processed video upload: {}", metadata.getMovieTitle());
-            return ResponseEntity.ok().body(metadata);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(media);
 
         } catch (Exception e) {
-            logger.error("Error processing video upload: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError()
+            System.out.println("Error processing upload: " + e);
+            return ResponseEntity.badRequest()
                     .body("Error processing upload: " + e.getMessage());
         }
     }
+
+    @GetMapping(value = "/teste")
+    public ResponseEntity<String> teste(){
+        System.out.println("Teste");
+        return ResponseEntity.ok().body("Teste");
+    }
+
 }
