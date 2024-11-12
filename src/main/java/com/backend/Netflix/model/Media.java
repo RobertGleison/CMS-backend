@@ -4,6 +4,7 @@ import lombok.*;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.Map;
 import java.util.SimpleTimeZone;
 import java.util.UUID;
 
@@ -21,6 +22,6 @@ public class Media {
     private String publisher;
     private Integer duration;
     private String filename;
-    private String bucketPath;
-    private LocalDateTime upload_timestamp;
+    private Map<String, String> bucketPaths;
+    private LocalDateTime uploadTimestamp;
 }

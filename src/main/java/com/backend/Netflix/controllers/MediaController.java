@@ -6,6 +6,8 @@ import com.backend.Netflix.model.Media;
 import com.backend.Netflix.repository.MediaRepository;
 import com.backend.Netflix.services.CassandraMediaService;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.logging.Logger;
 
@@ -37,8 +39,12 @@ public class MediaController {
         try {
             logger.info("Received file upload request");
             String filename = String.format("%s_%s", mediaForm.titleBody(), Objects.requireNonNull(mediaForm.videoPart().getContentType()).split("/")[1]);
-//            String bucketPath = gcpService.uploadFile();
-            String bucketPath = "caminho_bucket_teste";
+//          Map<String, String> bucketPath = gcpService.uploadFile();
+
+            Map<String, String> bucketPaths = new HashMap<>();
+            bucketPaths.put("360p", "caminho_path_360p");
+            bucketPaths.put("1080p", "caminho_path_1080p");
+
             LocalDateTime timestamp = LocalDateTime.now();
 
             Media media = new Media(
@@ -50,7 +56,7 @@ public class MediaController {
                     mediaForm.publisherBody(),
                     mediaForm.durationBody(),
                     filename,
-                    bucketPath,
+                    bucketPaths,
                     timestamp
             );
 

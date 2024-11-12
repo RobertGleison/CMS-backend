@@ -10,5 +10,5 @@ import java.util.UUID;
 @Repository
 public interface MediaRepository extends CassandraRepository<Media, UUID> {
     Optional<Media> findByTitle(String title);
-    Optional<Media> findByBucketPath(String bucketPath);
+//    Optional<Media> findByBucketPath(String bucketPath);
 }
