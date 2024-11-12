@@ -1,7 +1,8 @@
 package com.backend.Netflix.controllers;
 
-
 import com.backend.Netflix.model.Media;
+import com.backend.Netflix.repository.MediaRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/media")
 public class MediaController {
+
+    @Autowired
+    private MediaRepository mediaRepository;
+
 
     @PostMapping(value = "/upload",
             consumes = {MediaType.MULTIPART_FORM_DATA_VALUE},
@@ -47,6 +52,9 @@ public class MediaController {
                     LocalDateTime.of(2001, 3, 23, 0, 0
                     ));
 
+            media = mediaRepository.save(media);
+
+
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(media);
@@ -57,6 +65,7 @@ public class MediaController {
                     .body("Error processing upload: " + e.getMessage());
         }
     }
+
 
     @GetMapping(value = "/teste")
     public ResponseEntity<String> teste(){
