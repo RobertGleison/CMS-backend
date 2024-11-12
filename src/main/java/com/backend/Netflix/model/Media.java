@@ -19,7 +19,7 @@ public class Media {
     private String genre;
     private Integer year;
     private String publisher;
-    private Integer runtime;
+    private Integer duration;
     private String filename;
     private String bucketPath;
     private LocalDateTime upload_timestamp;

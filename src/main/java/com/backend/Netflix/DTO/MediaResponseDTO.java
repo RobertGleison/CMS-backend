@@ -5,6 +5,7 @@ public record MediaResponseDTO(
     String description,
     String genre,
     Integer year,
-    String publisher
+    String publisher,
+    Integer duration
 ) {}
 
