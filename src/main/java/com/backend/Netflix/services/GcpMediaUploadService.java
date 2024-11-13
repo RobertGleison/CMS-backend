@@ -25,9 +25,11 @@ public class GcpMediaUploadService {
     @Value("${cloudProjectId}")
     String projectId;
 
+
     // The ID of your GCS bucket
     @Value("${cloudBucketName}")
     String bucketName;
+
 
     public Map<String, String> upload(String title, MultipartFile videoFile, MultipartFile thumbnail) throws IOException {
         Map<String, String> bucketPaths = new HashMap<>();
@@ -35,13 +37,12 @@ public class GcpMediaUploadService {
         bucketPaths.put("1080p", uploadVideoHighQuality(title, videoFile));
         bucketPaths.put("thumbnail", uploadImage(title, thumbnail));
         return bucketPaths;
-
     }
+
 
     public String uploadVideoHighQuality(String fileName, MultipartFile videoFile) throws IOException {
         String bucketFileName = String.format("%s/%s_%s.%s", fileName, "1080p", fileName, Objects.requireNonNull(videoFile.getContentType()).split("/")[1]);
-        String bucketPath = streamObjectUpload(bucketFileName, videoFile);
-        return bucketPath;
+        return streamObjectUpload(bucketFileName, videoFile);
     }
 
 
@@ -52,11 +53,12 @@ public class GcpMediaUploadService {
         return "s3://bucket/popeye_e_os_40_abacates360.mp4";
     }
 
+
     public String uploadImage(String fileName, MultipartFile thumbnail) throws IOException {
         String bucketFileName = String.format("%s/%s_%s.%s", fileName, "thumbnail", fileName, Objects.requireNonNull(thumbnail.getContentType()).split("/")[1]);
-        String bucketPath = streamObjectUpload(bucketFileName, thumbnail);
-        return bucketPath;
+        return streamObjectUpload(bucketFileName, thumbnail);
     }
+
 
     public String streamObjectUpload(String objectName, MultipartFile file) throws IOException {
         Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();

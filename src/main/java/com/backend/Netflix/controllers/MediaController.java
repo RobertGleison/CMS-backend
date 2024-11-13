@@ -13,6 +13,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -30,7 +31,8 @@ public class MediaController {
 
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<Media> processMedia(@ModelAttribute @RequestBody MediaRequestMultiform mediaForm) throws IOException {
-        Media response = cassandraService.insertMedia(mediaForm);
+        Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
+        Media response = cassandraService.insertMedia(mediaForm, bucketPaths);
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
         return ResponseEntity.created(uri).body(response);
     }

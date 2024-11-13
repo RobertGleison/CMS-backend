@@ -28,7 +28,7 @@ public class CassandraMediaService {
     private GcpMediaUploadService gcpService;
 
 
-    public Media insertMedia(MediaRequestMultiform mediaForm) throws IOException {
+    public Media insertMedia(MediaRequestMultiform mediaForm, Map<String, String> bucketPaths) throws IOException {
 
             logger.info("Received file upload request");
             UUID id = UUID.randomUUID();
@@ -36,13 +36,10 @@ public class CassandraMediaService {
                             "%s.%s",
                             mediaForm.titleBody(),
                             Objects.requireNonNull(mediaForm.videoPart().getContentType()).split("/")[1])
-                    .replaceAll(" ", "_");
+                            .replaceAll(" ", "_");
 
             logger.info("Filename:" + filename);
 
-            // String imagename = String.format("%s.%s", mediaForm.titleBody(), Objects.requireNonNull(mediaForm.thumbnailPart().getContentType()).split("/")[1]);
-            // String videoname = String.format("%s.%s", mediaForm.titleBody(), Objects.requireNonNull(mediaForm.videoPart().getContentType()).split("/")[1]);
-            Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
 
             LocalDateTime timestamp = LocalDateTime.now();
 
