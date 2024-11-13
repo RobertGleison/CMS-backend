@@ -1,4 +1,4 @@
-package com.backend.Netflix.DTO;
+package com.backend.Netflix.model;
 
 public record MediaResponseDTO(
     String title,

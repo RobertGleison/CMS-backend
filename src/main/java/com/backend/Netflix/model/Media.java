@@ -1,5 +1,6 @@
 package com.backend.Netflix.model;
 import lombok.*;
+import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
@@ -14,6 +15,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @ToString
 public class Media {
+    @PrimaryKey
     private UUID id;
     private String title;
     private String description;

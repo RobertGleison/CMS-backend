@@ -1,4 +1,4 @@
-package com.backend.Netflix.DTO;
+package com.backend.Netflix.model;
 
 import org.springframework.web.multipart.MultipartFile;
 
