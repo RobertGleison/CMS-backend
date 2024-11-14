@@ -3,6 +3,7 @@ package com.backend.Netflix.controllers;
 import com.backend.Netflix.model.MediaRequestMultiform;
 import com.backend.Netflix.model.Media;
 import com.backend.Netflix.services.CassandraMediaService;
+import com.backend.Netflix.services.GcpMediaDeleteService;
 import com.backend.Netflix.services.GcpMediaUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -20,17 +21,18 @@ import java.util.UUID;
 @RequestMapping("/media")
 public class MediaController {
 
-
     @Autowired
     private CassandraMediaService cassandraService;
-
 
     @Autowired
     private GcpMediaUploadService gcpService;
 
+    @Autowired
+    private GcpMediaDeleteService gcpDelete;
+
 
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public ResponseEntity<Media> processMedia(@ModelAttribute @RequestBody MediaRequestMultiform mediaForm) throws IOException {
+    public ResponseEntity<Media> processMedia(@ModelAttribute @RequestBody MediaRequestMultiform mediaForm) throws IOException, InterruptedException {
         Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
         Media response = cassandraService.insertMedia(mediaForm, bucketPaths);
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
@@ -71,6 +73,8 @@ public class MediaController {
 
     @DeleteMapping("/title/{title}")
     public ResponseEntity<Void> deleteByTitle(@PathVariable String title) {
+//        gcpDelete.deleteMovieFile(title);
+        gcpDelete.deleteMovieFolder(title);
         cassandraService.deleteMediaByTitle(title);
         return ResponseEntity.noContent().build();
     }

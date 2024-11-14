@@ -98,6 +98,7 @@ public class CassandraMediaService {
 
         try {
             mediaRepository.deleteByTitle(title);
+            logger.info("Object " + title + " was deleted from database");
         }
         catch (RuntimeException e) {
             throw new DatabaseAccessException("Error deleting media with title: " + title);
