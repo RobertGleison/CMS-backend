@@ -13,7 +13,7 @@ import java.util.UUID;
 @Repository
 public interface MediaRepository extends CassandraRepository<Media, UUID> {
 
-    @Query("SELECT * FROM media WHERE title = ?0 ALLOW FILTERING")
+    @Query("DELETE FROM media WHERE title = ?0")
     void deleteByTitle(String title);
 
     @AllowFiltering

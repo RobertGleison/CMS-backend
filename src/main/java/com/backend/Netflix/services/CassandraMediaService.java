@@ -93,13 +93,13 @@ public class CassandraMediaService {
 
 
     public void deleteMediaByTitle(String title) {
-        Optional<List<Media>> mediaList = mediaRepository.findByTitle(title);
-        if (mediaList.isEmpty()) throw MediaNotFoundException.byTitle(title);
+       Optional<List<Media>> mediaList = mediaRepository.findByTitle(title);
+       if (mediaList.isEmpty()) throw MediaNotFoundException.byTitle(title);
 
-        try {
-            mediaRepository.deleteByTitle(title);
-            logger.info("Object " + title + " was deleted from database");
-        }
+       try{
+       for (Media media : mediaList.get()) {
+            mediaRepository.deleteById(media.getId());
+        }}
         catch (RuntimeException e) {
             throw new DatabaseAccessException("Error deleting media with title: " + title);
         }

@@ -13,6 +13,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +34,12 @@ public class MediaController {
 
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<Media> processMedia(@ModelAttribute @RequestBody MediaRequestMultiform mediaForm) throws IOException, InterruptedException {
-        Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
+//        Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
+        Map<String, String> bucketPaths = new HashMap<>();
+        bucketPaths.put("360p", "testeeeee");
+        bucketPaths.put("1080p", "testeeeee");
+
+
         Media response = cassandraService.insertMedia(mediaForm, bucketPaths);
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
         return ResponseEntity.created(uri).body(response);
@@ -73,8 +79,6 @@ public class MediaController {
 
     @DeleteMapping("/title/{title}")
     public ResponseEntity<Void> deleteByTitle(@PathVariable String title) {
-//        gcpDelete.deleteMovieFile(title);
-        gcpDelete.deleteMovieFolder(title);
         cassandraService.deleteMediaByTitle(title);
         return ResponseEntity.noContent().build();
     }
