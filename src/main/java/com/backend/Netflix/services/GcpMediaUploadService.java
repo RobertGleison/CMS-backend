@@ -69,29 +69,14 @@ public class GcpMediaUploadService {
 
 
     public String uploadObject(String bucketFileName, String filePath) throws IOException {
-
-        // The ID of your GCS object
-        // String objectName = "your-object-name";
-
-        // The path to your file to upload
-        // String filePath = "path/to/your/file"
-
         Storage storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
         BlobId blobId = BlobId.of(bucketName, bucketFileName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
 
-        // Optional: set a generation-match precondition to avoid potential race
-        // conditions and data corruptions. The request returns a 412 error if the
-        // preconditions are not met.
         Storage.BlobWriteOption precondition;
         if (storage.get(bucketName, bucketFileName) == null) {
-            // For a target object that does not yet exist, set the DoesNotExist precondition.
-            // This will cause the request to fail if the object is created before the request runs.
             precondition = Storage.BlobWriteOption.doesNotExist();
         } else {
-            // If the destination already exists in your bucket, instead set a generation-match
-            // precondition. This will cause the request to fail if the existing object's generation
-            // changes before the request runs.
             precondition =
                     Storage.BlobWriteOption.generationMatch(
                             storage.get(bucketName, bucketFileName).getGeneration());
@@ -139,12 +124,10 @@ public class GcpMediaUploadService {
     }
 
     public String downloadMultipartAsMp4(MultipartFile multipartFile, String title, String targetDirectory) throws IOException {
-        // Valida se o MultipartFile não está vazio
         if (multipartFile.isEmpty()) {
             throw new IllegalArgumentException("O arquivo enviado está vazio.");
         }
 
-        // Garante que o diretório de destino existe
         File directory = new File(targetDirectory);
         if (!directory.exists()) {
             if (!directory.mkdirs()) {
@@ -152,11 +135,9 @@ public class GcpMediaUploadService {
             }
         }
 
-        // Define o nome e caminho do arquivo
         String fileName = title + "Original.mp4";
         File targetFile = new File(directory, fileName);
 
-        // Salva os dados do MultipartFile no disco
         try (FileOutputStream fos = new FileOutputStream(targetFile)) {
             fos.write(multipartFile.getBytes());
         }
@@ -183,52 +164,6 @@ public class GcpMediaUploadService {
         FFmpegExecutor executor = new FFmpegExecutor(ffmpeg, ffprobe);
         executor.createJob(builder).run();
         return outputFile;
-//        String[] command = {
-//                "ffmpeg",
-//                "-i", "testeconverter.mp4",       // Arquivo de entrada
-//                "-vf", "scale=640:360",           // Redimensiona para 640x360
-//                "-f", "mp4",                      // Formato do output
-//                "-vcodec", "libx264",             // Codec de vídeo
-//                "-preset", "fast",                // Preset para compressão rápida
-//                "-movflags", "frag_keyframe+empty_moov", // Flags para streaming no stdout
-//                "pipe:1"                          // Direciona a saída para o stdout
-//        };
-//
-//        // Inicializa o processo usando ProcessBuilder
-//        ProcessBuilder processBuilder = new ProcessBuilder(command);
-//        processBuilder.redirectErrorStream(true); // Redireciona o stderr para stdout
-//        Process process = processBuilder.start();
-//
-//        // Captura o output do FFmpeg em um ByteArrayOutputStream
-//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//        InputStream processInput = process.getInputStream();
-//
-//        byte[] buffer = new byte[4096];
-//        int bytesRead;
-//        while ((bytesRead = processInput.read(buffer)) != -1) {
-//            outputStream.write(buffer, 0, bytesRead);
-//        }
-//
-//        // Espera o processo finalizar
-//        int exitCode = process.waitFor();
-//        if (exitCode != 0) {
-//            System.err.println("Erro ao processar o vídeo.");
-//            return null;
-//        }
-//
-//        // Converte o output para um array de bytes
-//        byte[] videoData = outputStream.toByteArray();
-//
-//        // Cria um MultipartFile usando o MockMultipartFile
-//        MultipartFile multipartFile = new MockMultipartFile(
-//                "output.mp4",                    // Nome do arquivo
-//                "output.mp4",                    // Nome original (pode ser o mesmo)
-//                "video/mp4",                     // Tipo de conteúdo
-//                videoData                         // Dados do arquivo em byte array
-//        );
-//
-//        return multipartFile;
-////            System.out.println("Vídeo processado e armazenado como MultipartFile!");
 
     }
 

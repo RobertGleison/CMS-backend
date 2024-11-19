@@ -34,11 +34,11 @@ public class MediaController {
 
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<Media> processMedia(@ModelAttribute @RequestBody MediaRequestMultiform mediaForm) throws IOException, InterruptedException {
-        System.out.println(mediaForm.videoPart().getContentType());
-//        Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
-        Map<String, String> bucketPaths = new HashMap<>();
-        bucketPaths.put("360p", "testeeeee");
-        bucketPaths.put("1080p", "testeeeee");
+//        System.out.println(mediaForm.videoPart().getContentType());
+        Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
+//        Map<String, String> bucketPaths = new HashMap<>();
+//        bucketPaths.put("360p", "testeeeee");
+//        bucketPaths.put("1080p", "testeeeee");
 
 
         Media response = cassandraService.insertMedia(mediaForm, bucketPaths);
