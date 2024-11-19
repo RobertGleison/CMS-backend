@@ -34,6 +34,7 @@ public class MediaController {
 
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<Media> processMedia(@ModelAttribute @RequestBody MediaRequestMultiform mediaForm) throws IOException, InterruptedException {
+        System.out.println(mediaForm.videoPart().getContentType());
 //        Map<String, String> bucketPaths = gcpService.upload(mediaForm.titleBody(), mediaForm.videoPart(), mediaForm.thumbnailPart());
         Map<String, String> bucketPaths = new HashMap<>();
         bucketPaths.put("360p", "testeeeee");
@@ -80,6 +81,7 @@ public class MediaController {
     @DeleteMapping("/title/{title}")
     public ResponseEntity<Void> deleteByTitle(@PathVariable String title) {
         cassandraService.deleteMediaByTitle(title);
+//        gcpDelete.deleteMovieFolder(title);
         return ResponseEntity.noContent().build();
     }
 }
