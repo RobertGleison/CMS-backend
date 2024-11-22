@@ -31,6 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
-
+src/main/resources/google-services.json
 
 application.properties
