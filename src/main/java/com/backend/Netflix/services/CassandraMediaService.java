@@ -34,8 +34,8 @@ public class CassandraMediaService {
             UUID id = UUID.randomUUID();
             String filename = String.format(
                             "%s.%s",
-                            mediaForm.titleBody(),
-                            Objects.requireNonNull(mediaForm.videoPart().getContentType()).split("/")[1])
+                            mediaForm.title(),
+                            Objects.requireNonNull(mediaForm.videoFile().getContentType()).split("/")[1])
                             .replaceAll(" ", "_");
 
             logger.info("Filename:" + filename);
@@ -45,12 +45,12 @@ public class CassandraMediaService {
 
             Media media = new Media(
                     id,
-                    mediaForm.titleBody(),
-                    mediaForm.descriptionBody(),
-                    mediaForm.genreBody(),
-                    mediaForm.yearBody(),
-                    mediaForm.publisherBody(),
-                    mediaForm.durationBody(),
+                    mediaForm.title(),
+                    mediaForm.description(),
+                    mediaForm.genre(),
+                    mediaForm.year(),
+                    mediaForm.publisher(),
+                    mediaForm.duration(),
                     filename,
                     bucketPaths,
                     timestamp
