@@ -35,3 +35,4 @@ src/main/resources/google-services.json
 
 application.properties
 netflixplus-438015-60273bc6a3c6.json
+src/main/resources/*.json
