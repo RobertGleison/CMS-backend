@@ -2,72 +2,104 @@ package com.backend.Netflix.services;
 
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
-import net.bramp.ffmpeg.FFmpeg;
-import net.bramp.ffmpeg.FFmpegExecutor;
-import net.bramp.ffmpeg.FFprobe;
-import net.bramp.ffmpeg.builder.FFmpegBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.mock.web.MockMultipartFile;
 
-
 import java.io.*;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
 
+/**
+ * Service responsible for handling media file uploads to Google Cloud Storage with support for video conversion using FFmpeg.
+ */
 @Service
 public class GcpMediaUploadService {
 
-    // The ID of your GCP project
+
     @Value("${cloudProjectId}")
     String projectId;
 
 
-    // The ID of your GCS bucket
     @Value("${cloudBucketName}")
     String bucketName;
 
-//    @Value("${ffmpegPath}")
-//    String ffmpegPath;
-//
-//    @Value("${ffprobePath}")
-//    String ffprobePath;
 
-
+    /**
+     * Uploads a video file and its thumbnail to Google Cloud Storage.
+     * Creates three versions: high definition, low definition, and thumbnail.
+     * @param title Title of the media, used for file naming
+     * @param videoFile Original video file to be uploaded
+     * @param thumbnail Thumbnail image for the video
+     * @return Map containing URLs for all uploaded versions (high_quality, low_quality, thumbnail)
+     * @throws IOException If there's an error handling the files
+     * @throws InterruptedException If the video conversion process is interrupted
+     */
     public Map<String, String> upload(String title, MultipartFile videoFile, MultipartFile thumbnail) throws IOException, InterruptedException {
         Map<String, String> bucketPaths = new HashMap<>();
-        bucketPaths.put("360p", uploadVideoLowQuality(title, videoFile));
-        bucketPaths.put("1080p", uploadVideoHighQuality(title, videoFile));
+        bucketPaths.put("low_quality", uploadVideoLowDefinition(title, videoFile));
+        bucketPaths.put("high_quality", uploadVideoHighDefinition(title, videoFile));
         bucketPaths.put("thumbnail", uploadImage(title, thumbnail));
         return bucketPaths;
     }
 
 
-    public String uploadVideoHighQuality(String fileName, MultipartFile videoFile) throws IOException {
-        String bucketFileName = String.format("%s/%s_%s.%s", fileName, "1080p", fileName, Objects.requireNonNull(videoFile.getContentType()).split("/")[1]);
+    /**
+     * Uploads the high definition version of the video.
+     * Creates a file path in format: {fileName}/HD_video.{extension}
+     * @param fileName Base name for the file
+     * @param videoFile Video file to upload
+     * @return Public URL of the uploaded file
+     * @throws IOException If there's an error during upload
+     */
+    public String uploadVideoHighDefinition(String fileName, MultipartFile videoFile) throws IOException {
+        String bucketFileName = String.format("%s/%s_%s.%s", fileName, "HD", "video", Objects.requireNonNull(videoFile.getContentType()).split("/")[1]);
         return streamObjectUpload(bucketFileName, videoFile);
     }
 
 
-    public String uploadVideoLowQuality(String fileName, MultipartFile videoFile) throws IOException, InterruptedException {
-        String bucketFileName = String.format("%s/%s_%s.%s", fileName, "360p", fileName, Objects.requireNonNull(videoFile.getContentType()).split("/")[1]);
-        MultipartFile newFile = convertTo360p(videoFile);
+    /**
+     * Converts and uploads the low definition version of the video.
+     * Creates a file path in format: {fileName}/LD_video.{extension}
+     * @param fileName Base name for the file
+     * @param videoFile Video file to convert and upload
+     * @return Public URL of the uploaded file
+     * @throws IOException If there's an error during conversion or upload
+     * @throws InterruptedException If the conversion process is interrupted
+     */
+    public String uploadVideoLowDefinition(String fileName, MultipartFile videoFile) throws IOException, InterruptedException {
+        String bucketFileName = String.format("%s/%s_%s.%s", fileName, "LD", "video", Objects.requireNonNull(videoFile.getContentType()).split("/")[1]);
+        MultipartFile newFile = convertToLowDefinition(videoFile);
         return streamObjectUpload(bucketFileName, newFile);
     }
 
 
+    /**
+     * Uploads the thumbnail image.
+     * Creates a file path in format: {fileName}/thumbnail.{extension}
+     * @param fileName Base name for the file
+     * @param thumbnail Thumbnail image to upload
+     * @return Public URL of the uploaded thumbnail
+     * @throws IOException If there's an error during upload
+     */
     public String uploadImage(String fileName, MultipartFile thumbnail) throws IOException {
-        String bucketFileName = String.format("%s/%s_%s.%s", fileName, "thumbnail", fileName, Objects.requireNonNull(thumbnail.getContentType()).split("/")[1]);
+        String bucketFileName = String.format("%s/%s_.%s", fileName, "thumbnail", Objects.requireNonNull(thumbnail.getContentType()).split("/")[1]);
         return streamObjectUpload(bucketFileName, thumbnail);
     }
 
 
+    /**
+     * Handles the actual streaming upload of files to Google Cloud Storage.
+     * Uses a 1MB buffer for efficient streaming of large files.
+     * @param objectName Full path/name of the file in the bucket
+     * @param file File to upload
+     * @return Public URL of the uploaded file
+     * @throws IOException If there's an error during upload
+     */
     public String streamObjectUpload(String objectName, MultipartFile file) throws IOException {
         Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();
         BlobId blobId = BlobId.of(this.bucketName, objectName);
@@ -76,7 +108,6 @@ public class GcpMediaUploadService {
         try (WriteChannel writer = storage.writer(blobInfo);
              InputStream inputStream = file.getInputStream()) {
 
-            // Use 1MB buffer
             byte[] buffer = new byte[1024 * 1024];
             int bytesRead;
 
@@ -85,39 +116,43 @@ public class GcpMediaUploadService {
                 writer.write(byteBuffer);
             }
 
-            System.out.println(
-                    "Wrote " + objectName + " to bucket " + bucketName + " using a WriteChannel.");
-
-            return "https://storage.cloud.google.com/netflixplus-library-cc2024/" + objectName;
+            System.out.println("Wrote " + objectName + " to bucket " + bucketName + " using a WriteChannel.");
+            return String.format("https://storage.cloud.google.com/%s/%s", bucketName, objectName);
         }
     }
 
-    public MultipartFile convertTo360p(MultipartFile inputFile) throws IOException, InterruptedException {
-        // Extrai os bytes do MultipartFile de entrada
+
+    /**
+     * Converts a video file to low definition (360p) using FFmpeg.
+     * Uses external FFmpeg process to perform the conversion with the following settings:
+     * - Resolution: 640x360
+     * - Codec: H.264
+     * - Preset: fast
+     * - Format: MP4
+     * @param inputFile Original video file to convert
+     * @return Converted video file as MultipartFile
+     * @throws IOException If there's an error handling the files
+     * @throws InterruptedException If the FFmpeg process is interrupted
+     * @throws RuntimeException If the FFmpeg process fails
+     */
+    public MultipartFile convertToLowDefinition(MultipartFile inputFile) throws IOException, InterruptedException {
         byte[] inputBytes = inputFile.getBytes();
 
-//        FFmpeg ffmpeg = new FFmpeg("ffmpeg");
-//        FFprobe ffprobe = new FFprobe("C:\\ffmpeg\\bin\\ffprobe.exe"); // Caminho para o FFprobe no Windows
-
-
-        // Comando FFmpeg para redimensionar o vídeo para 360p e enviar para stdout
         String[] command = {
                 "C:\\ffmpeg\\bin\\ffmpeg.exe",
-                "-i", "pipe:0",                 // Entrada do vídeo via pipe
-                "-vf", "scale=640:360",         // Redimensiona para 640x360
-                "-f", "mp4",                    // Formato de saída
-                "-vcodec", "libx264",           // Codec de vídeo
-                "-preset", "fast",              // Preset de compressão rápida
-                "-movflags", "frag_keyframe+empty_moov", // Flags para streaming
-                "pipe:1"                        // Envia a saída para o stdout
+                "-i", "pipe:0",
+                "-vf", "scale=640:360",
+                "-f", "mp4",
+                "-vcodec", "libx264",
+                "-preset", "fast",
+                "-movflags", "frag_keyframe+empty_moov",
+                "pipe:1"
         };
 
-        // Inicia o processo FFmpeg
         ProcessBuilder processBuilder = new ProcessBuilder(command);
-        processBuilder.redirectErrorStream(true); // Redireciona erros para o stdout
+        processBuilder.redirectErrorStream(true);
         Process process = processBuilder.start();
 
-        // Envia os bytes de entrada para o processo FFmpeg
         try (InputStream inputStream = new ByteArrayInputStream(inputBytes)) {
             byte[] buffer = new byte[4096];
             int bytesRead;
@@ -128,7 +163,6 @@ public class GcpMediaUploadService {
             process.getOutputStream().close();
         }
 
-        // Captura a saída do FFmpeg em um ByteArrayOutputStream
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (InputStream processInput = process.getInputStream()) {
             byte[] buffer = new byte[4096];
@@ -138,70 +172,17 @@ public class GcpMediaUploadService {
             }
         }
 
-        // Espera o processo terminar
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             throw new RuntimeException("Erro ao processar o vídeo com FFmpeg.");
         }
 
-        // Converte o output do FFmpeg para um MultipartFile
         byte[] outputBytes = outputStream.toByteArray();
         return new MockMultipartFile(
-                "converted.mp4",                   // Nome do arquivo
-                "converted.mp4",                   // Nome original
-                "video/mp4",                       // Tipo de conteúdo
-                outputBytes                        // Conteúdo convertido
+                "converted.mp4",
+                "converted.mp4",
+                "video/mp4",
+                outputBytes
         );
     }
-
-//    public MultipartFile convertVideo(String path) throws IOException, InterruptedException {
-//        String[] command = {
-//                "ffmpeg",
-//                "-i", "testeconverter.mp4",       // Arquivo de entrada
-//                "-vf", "scale=640:360",           // Redimensiona para 640x360
-//                "-f", "mp4",                      // Formato do output
-//                "-vcodec", "libx264",             // Codec de vídeo
-//                "-preset", "fast",                // Preset para compressão rápida
-//                "-movflags", "frag_keyframe+empty_moov", // Flags para streaming no stdout
-//                "pipe:1"                          // Direciona a saída para o stdout
-//        };
-//
-//        // Inicializa o processo usando ProcessBuilder
-//        ProcessBuilder processBuilder = new ProcessBuilder(command);
-//        processBuilder.redirectErrorStream(true); // Redireciona o stderr para stdout
-//        Process process = processBuilder.start();
-//
-//        // Captura o output do FFmpeg em um ByteArrayOutputStream
-//        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//        InputStream processInput = process.getInputStream();
-//
-//        byte[] buffer = new byte[4096];
-//        int bytesRead;
-//        while ((bytesRead = processInput.read(buffer)) != -1) {
-//            outputStream.write(buffer, 0, bytesRead);
-//        }
-//
-//        // Espera o processo finalizar
-//        int exitCode = process.waitFor();
-//        if (exitCode != 0) {
-//            System.err.println("Erro ao processar o vídeo.");
-//            return null;
-//        }
-//
-//        // Converte o output para um array de bytes
-//        byte[] videoData = outputStream.toByteArray();
-//
-//        // Cria um MultipartFile usando o MockMultipartFile
-//        MultipartFile multipartFile = new MockMultipartFile(
-//                "output.mp4",                    // Nome do arquivo
-//                "output.mp4",                    // Nome original (pode ser o mesmo)
-//                "video/mp4",                     // Tipo de conteúdo
-//                videoData                         // Dados do arquivo em byte array
-//        );
-//
-//        return multipartFile;
-////            System.out.println("Vídeo processado e armazenado como MultipartFile!");
-//
-//    }
 }
-
