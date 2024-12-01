@@ -9,9 +9,13 @@ import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 
 /**
@@ -41,12 +45,163 @@ public class GcpMediaUploadService {
      */
     public Map<String, String> upload(String title, MultipartFile videoFile, MultipartFile thumbnail) throws IOException, InterruptedException {
         Map<String, String> bucketPaths = new HashMap<>();
-        bucketPaths.put("low_quality", uploadVideoLowDefinition(title, videoFile));
-        bucketPaths.put("high_quality", uploadVideoHighDefinition(title, videoFile));
+        bucketPaths.put("LD_default", uploadVideoLowDefinition(title, videoFile));
+        bucketPaths.put("HD_default", uploadVideoHighDefinition(title, videoFile));
+        bucketPaths.put("HD_HLS", uploadVideoHighDefinitionHLS(title, videoFile));
+        bucketPaths.put("LD_HLS", uploadVideoLowDefinitionHLS(title, videoFile));
         bucketPaths.put("thumbnail", uploadImage(title, thumbnail));
         return bucketPaths;
     }
 
+    public String uploadVideoHighDefinitionHLS(String fileName, MultipartFile videoFile) throws IOException {
+        Map<String, byte[]> hlsFiles = convertToHLS(videoFile, "HD");
+        return uploadHLSFiles(fileName, hlsFiles, "HD_HLS_video");
+    }
+
+    public String uploadVideoLowDefinitionHLS(String fileName, MultipartFile videoFile) throws IOException, InterruptedException {
+        MultipartFile ldVideo = convertToLowDefinition(videoFile);
+        Map<String, byte[]> hlsFiles = convertToHLS(ldVideo, "LD");
+        return uploadHLSFiles(fileName, hlsFiles, "LD_HLS_video");
+    }
+
+    private String uploadHLSFiles(String fileName, Map<String, byte[]> hlsFiles, String hlsType) throws IOException {
+        Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();
+
+        for (Map.Entry<String, byte[]> entry : hlsFiles.entrySet()) {
+            String hlsFileName = entry.getKey();
+            byte[] fileContent = entry.getValue();
+
+            // Create the full path in the bucket
+            String bucketFilePath = String.format("%s/%s/%s", fileName, hlsType, hlsFileName);
+
+            // Upload the file
+            BlobId blobId = BlobId.of(this.bucketName, bucketFilePath);
+            BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
+                    .setContentType(getContentType(hlsFileName))
+                    .build();
+
+            storage.create(blobInfo, fileContent);
+        }
+
+        // Return the playlist URL
+        return String.format("https://storage.cloud.google.com/%s/%s/%s/playlist.m3u8",
+                bucketName, fileName, hlsType);
+    }
+
+    private String getContentType(String fileName) {
+        if (fileName.endsWith(".m3u8")) {
+            return "application/vnd.apple.mpegurl";
+        } else if (fileName.endsWith(".ts")) {
+            return "video/MP2T";
+        }
+        return "application/octet-stream";
+    }
+
+    private Map<String, byte[]> convertToHLS(MultipartFile videoFile, String quality) throws IOException {
+        byte[] inputBytes = videoFile.getBytes();
+        String tempDir = System.getProperty("java.io.tmpdir");
+        String uniqueId = UUID.randomUUID().toString();
+        String workingDir = tempDir + File.separator + uniqueId;
+        Map<String, byte[]> hlsFiles = new HashMap<>();
+
+        // Create working directory
+        Files.createDirectories(Paths.get(workingDir));
+
+        // Write input file to temp directory
+        Path inputPath = Paths.get(workingDir, "input.mp4");
+        Files.write(inputPath, inputBytes);
+
+        try {
+            String[] command = {
+                    "C:\\ffmpeg\\bin\\ffmpeg.exe",
+                    "-i", inputPath.toString(),
+                    "-map", "0:v:0",
+                    "-map", "0:a:0",
+                    "-c:v", "libx264",
+                    // Different bitrates for HD and LD
+                    "-b:v", quality.equals("HD") ? "2800k" : "800k",
+                    "-maxrate", quality.equals("HD") ? "3000k" : "856k",
+                    "-bufsize", quality.equals("HD") ? "6000k" : "1712k",
+                    "-c:a", "aac",
+                    "-b:a", "128k",
+                    "-preset", "fast",
+                    "-keyint_min", "48",
+                    "-g", "48",
+                    "-sc_threshold", "0",
+                    "-hls_time", "4",
+                    "-hls_playlist_type", "vod",
+                    "-hls_list_size", "0",
+                    "-hls_segment_filename", workingDir + "/stream/data%d.ts",
+                    workingDir + "/stream/playlist.m3u8"
+            };
+
+            ProcessBuilder processBuilder = new ProcessBuilder(command);
+            processBuilder.redirectErrorStream(true);
+            Process process = processBuilder.start();
+
+            // Read process output
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Error processing video with FFmpeg: " + exitCode);
+            }
+
+            // Read all generated files
+            File streamDir = new File(workingDir + "/stream");
+            File[] files = streamDir.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    hlsFiles.put(file.getName(), Files.readAllBytes(file.toPath()));
+                }
+            }
+
+            return hlsFiles;
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("HLS conversion interrupted", e);
+        } finally {
+            // Clean up temp directory
+            deleteDirectory(new File(workingDir));
+        }
+    }
+
+    /**
+     * Gets the file extension from a filename.
+     * @param filename The filename to extract extension from
+     * @return The file extension including the dot, or empty string if none exists
+     */
+    private String getFileExtension(String filename) {
+        if (filename == null) return "";
+        int lastDotIndex = filename.lastIndexOf(".");
+        return (lastDotIndex == -1) ? "" : filename.substring(lastDotIndex);
+    }
+
+    /**
+     * Recursively deletes a directory and all its contents.
+     * @param directory The directory to delete
+     */
+    private void deleteDirectory(File directory) {
+        if (directory.exists()) {
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        deleteDirectory(file);
+                    } else {
+                        file.delete();
+                    }
+                }
+            }
+            directory.delete();
+        }
+    }
 
     /**
      * Uploads the high definition version of the video.
