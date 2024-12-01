@@ -342,8 +342,22 @@ public class GcpMediaUploadService {
      * @throws InterruptedException If the FFmpeg process is interrupted
      * @throws RuntimeException If the FFmpeg process fails
      */
+    /**
+     * Converts a video file to low definition (360p) using FFmpeg.
+     * Uses external FFmpeg process to perform the conversion with the following settings:
+     * - Resolution: 640x360
+     * - Codec: H.264
+     * - Preset: ultrafast (for faster processing)
+     * - Format: MP4
+     * - Thread count: Optimized for current CPU
+     * @param inputFile Original video file to convert
+     * @return Converted video file as MultipartFile
+     * @throws IOException If there's an error handling the files
+     * @throws InterruptedException If the FFmpeg process is interrupted
+     * @throws RuntimeException If the FFmpeg process fails
+     */
     public MultipartFile convertToLowDefinition(MultipartFile inputFile) throws IOException, InterruptedException {
-        System.out.println("Convert to Low definition");
+        System.out.println("Converting to Low definition");
         byte[] inputBytes = inputFile.getBytes();
 
         String[] command = {
@@ -352,8 +366,10 @@ public class GcpMediaUploadService {
                 "-vf", "scale=640:360",
                 "-f", "mp4",
                 "-vcodec", "libx264",
-                "-preset", "fast",
-                "-movflags", "frag_keyframe+empty_moov",
+                "-preset", "ultrafast",  // Changed from 'fast' to 'ultrafast'
+                "-threads", "0",         // Use optimal number of threads
+                "-movflags", "frag_keyframe+empty_moov+faststart",
+                "-y",                    // Overwrite output files without asking
                 "pipe:1"
         };
 
@@ -361,36 +377,38 @@ public class GcpMediaUploadService {
         processBuilder.redirectErrorStream(true);
         Process process = processBuilder.start();
 
-        try (InputStream inputStream = new ByteArrayInputStream(inputBytes)) {
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                process.getOutputStream().write(buffer, 0, bytesRead);
+        // Start a separate thread for writing input
+        Thread inputThread = new Thread(() -> {
+            try (OutputStream outputStream = process.getOutputStream()) {
+                outputStream.write(inputBytes);
+                outputStream.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            process.getOutputStream().flush();
-            process.getOutputStream().close();
-        }
+        });
+        inputThread.start();
 
+        // Read the output with a larger buffer
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
         try (InputStream processInput = process.getInputStream()) {
-            byte[] buffer = new byte[4096];
+            byte[] buffer = new byte[8192 * 8]; // Increased buffer size to 64KB
             int bytesRead;
             while ((bytesRead = processInput.read(buffer)) != -1) {
                 outputStream.write(buffer, 0, bytesRead);
             }
         }
 
+        inputThread.join();
         int exitCode = process.waitFor();
         if (exitCode != 0) {
-            throw new RuntimeException("Erro ao processar o vídeo com FFmpeg.");
+            throw new RuntimeException("Error processing video with FFmpeg: Exit code " + exitCode);
         }
 
-        byte[] outputBytes = outputStream.toByteArray();
         return new MockMultipartFile(
                 "converted.mp4",
                 "converted.mp4",
                 "video/mp4",
-                outputBytes
+                outputStream.toByteArray()
         );
     }
 }
