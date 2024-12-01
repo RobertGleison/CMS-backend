@@ -2,6 +2,7 @@ package com.backend.Netflix.services;
 
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -25,12 +26,19 @@ import java.util.UUID;
 public class GcpMediaUploadService {
 
 
-    @Value("${cloudProjectId}")
-    String projectId;
+    private final Storage storage;
+    private final String projectId;
+    private final String bucketName;
 
-
-    @Value("${cloudBucketName}")
-    String bucketName;
+    @Autowired
+    public GcpMediaUploadService(
+            Storage storage,
+            @Value("${cloudProjectId}") String projectId,
+            @Value("${cloudBucketName}") String bucketName) {
+        this.storage = storage;
+        this.projectId = projectId;
+        this.bucketName = bucketName;
+    }
 
 
     /**
@@ -48,9 +56,9 @@ public class GcpMediaUploadService {
         Map<String, String> bucketPaths = new HashMap<>();
         bucketPaths.put("LD_default", uploadVideoLowDefinition(title, videoFile));
         bucketPaths.put("HD_default", uploadVideoHighDefinition(title, videoFile));
+        bucketPaths.put("thumbnail", uploadImage(title, thumbnail));
         bucketPaths.put("HD_HLS", uploadVideoHighDefinitionHLS(title, videoFile));
         bucketPaths.put("LD_HLS", uploadVideoLowDefinitionHLS(title, videoFile));
-        bucketPaths.put("thumbnail", uploadImage(title, thumbnail));
         return bucketPaths;
     }
 
@@ -79,9 +87,68 @@ public class GcpMediaUploadService {
      */
     public String uploadVideoLowDefinitionHLS(String fileName, MultipartFile videoFile) throws IOException, InterruptedException {
         System.out.println("Enter in upload LD HLS video");
-        MultipartFile ldVideo = convertToLowDefinition(videoFile);
-        Map<String, byte[]> hlsFiles = convertToHLS(ldVideo, "LD");
-        return uploadHLSFiles(fileName, hlsFiles, "LD_HLS_video");
+
+        // Create a temporary directory for intermediate files
+        String tempDir = System.getProperty("java.io.tmpdir");
+        String uniqueId = UUID.randomUUID().toString();
+        String workingDir = tempDir + File.separator + uniqueId;
+        Files.createDirectories(Paths.get(workingDir));
+
+        try {
+            // First convert to low definition and save to temp file
+            Path ldVideoPath = Paths.get(workingDir, "lowdef.mp4");
+            byte[] inputBytes = videoFile.getBytes();
+
+            String[] command = {
+                    "ffmpeg",
+                    "-i", "pipe:0",
+                    "-vf", "scale=640:360",
+                    "-c:v", "libx264",
+                    "-preset", "ultrafast",
+                    "-c:a", "aac",
+                    "-movflags", "+faststart",
+                    "-y",
+                    ldVideoPath.toString()
+            };
+
+            ProcessBuilder processBuilder = new ProcessBuilder(command);
+            processBuilder.redirectErrorStream(true);
+            Process process = processBuilder.start();
+
+            // Write input
+            try (OutputStream outputStream = process.getOutputStream()) {
+                outputStream.write(inputBytes);
+                outputStream.flush();
+            }
+
+            // Read process output for logging
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Error converting to low definition: " + exitCode);
+            }
+
+            // Now convert the low definition file to HLS
+            MultipartFile ldVideo = new MockMultipartFile(
+                    "lowdef.mp4",
+                    "lowdef.mp4",
+                    "video/mp4",
+                    Files.readAllBytes(ldVideoPath)
+            );
+
+            Map<String, byte[]> hlsFiles = convertToHLS(ldVideo, "LD");
+            return uploadHLSFiles(fileName, hlsFiles, "LD_HLS_video");
+
+        } finally {
+            // Clean up
+            deleteDirectory(new File(workingDir));
+        }
     }
 
 
@@ -95,7 +162,8 @@ public class GcpMediaUploadService {
      */
     private String uploadHLSFiles(String fileName, Map<String, byte[]> hlsFiles, String hlsType) throws IOException {
         System.out.println("Enter in upload HLS Files");
-        Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();
+        // Remove this line since we'll use the injected storage
+        // Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();
 
         for (Map.Entry<String, byte[]> entry : hlsFiles.entrySet()) {
             String hlsFileName = entry.getKey();
@@ -103,14 +171,15 @@ public class GcpMediaUploadService {
 
             // Create the full path in the bucket
             String bucketFilePath = String.format("%s/%s/%s", fileName, hlsType, hlsFileName);
+            System.out.println("Uploading file: " + bucketFilePath);
 
-            // Upload the file
+            // Upload the file using the injected storage client
             BlobId blobId = BlobId.of(this.bucketName, bucketFilePath);
             BlobInfo blobInfo = BlobInfo.newBuilder(blobId)
                     .setContentType(getContentType(hlsFileName))
                     .build();
 
-            storage.create(blobInfo, fileContent);
+            this.storage.create(blobInfo, fileContent);
         }
 
         // Return the playlist URL
@@ -147,23 +216,24 @@ public class GcpMediaUploadService {
         String tempDir = System.getProperty("java.io.tmpdir");
         String uniqueId = UUID.randomUUID().toString();
         String workingDir = tempDir + File.separator + uniqueId;
+        String streamDir = workingDir + File.separator + "stream";  // Define stream directory path
         Map<String, byte[]> hlsFiles = new HashMap<>();
 
-        // Create working directory
-        Files.createDirectories(Paths.get(workingDir));
-
-        // Write input file to temp directory
-        Path inputPath = Paths.get(workingDir, "input.mp4");
-        Files.write(inputPath, inputBytes);
-
         try {
+            // Create both working directory AND stream directory
+            Files.createDirectories(Paths.get(workingDir));
+            Files.createDirectories(Paths.get(streamDir));  // Create stream directory explicitly
+
+            // Write input file to temp directory
+            Path inputPath = Paths.get(workingDir, "input.mp4");
+            Files.write(inputPath, inputBytes);
+
             String[] command = {
                     "ffmpeg",
                     "-i", inputPath.toString(),
                     "-map", "0:v:0",
                     "-map", "0:a:0",
                     "-c:v", "libx264",
-                    // Different bitrates for HD and LD
                     "-b:v", quality.equals("HD") ? "2800k" : "800k",
                     "-maxrate", quality.equals("HD") ? "3000k" : "856k",
                     "-bufsize", quality.equals("HD") ? "6000k" : "1712k",
@@ -176,8 +246,8 @@ public class GcpMediaUploadService {
                     "-hls_time", "4",
                     "-hls_playlist_type", "vod",
                     "-hls_list_size", "0",
-                    "-hls_segment_filename", workingDir + "/stream/data%d.ts",
-                    workingDir + "/stream/playlist.m3u8"
+                    "-hls_segment_filename", streamDir + "/data%d.ts",  // Use streamDir variable
+                    streamDir + "/playlist.m3u8"  // Use streamDir variable
             };
 
             ProcessBuilder processBuilder = new ProcessBuilder(command);
@@ -198,8 +268,8 @@ public class GcpMediaUploadService {
             }
 
             // Read all generated files
-            File streamDir = new File(workingDir + "/stream");
-            File[] files = streamDir.listFiles();
+            File streamDirectory = new File(streamDir);  // Convert String path to File object
+            File[] files = streamDirectory.listFiles();
             if (files != null) {
                 for (File file : files) {
                     hlsFiles.put(file.getName(), Files.readAllBytes(file.toPath()));
@@ -307,9 +377,8 @@ public class GcpMediaUploadService {
      * @throws IOException If there's an error during upload
      */
     public String streamObjectUpload(String objectName, MultipartFile file) throws IOException {
-        System.out.println("StreamObjectUpload");
-        Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();
-        BlobId blobId = BlobId.of(this.bucketName, objectName);
+        // Use the injected storage client instead of creating a new one
+        BlobId blobId = BlobId.of(bucketName, objectName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
 
         try (WriteChannel writer = storage.writer(blobInfo);

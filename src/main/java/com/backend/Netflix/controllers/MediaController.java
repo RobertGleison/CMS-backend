@@ -122,4 +122,17 @@ public class MediaController {
         cassandraService.deleteMediaByTitle(title);
         return ResponseEntity.noContent().build();
     }
+
+
+    /**
+     * Deletes all media entries with a specific title.
+     * Removes both database entries and associated files from storage.
+     * @param title Title of the media items to delete
+     * @return ResponseEntity with no content indicating successful deletion
+     */
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAllMedia() {
+        cassandraService.deleteAllMedia();
+        return ResponseEntity.noContent().build();
+    }
 }

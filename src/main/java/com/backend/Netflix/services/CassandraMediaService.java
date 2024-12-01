@@ -45,7 +45,7 @@ public class CassandraMediaService {
         logger.info("Received file upload request");
 
         UUID id = UUID.randomUUID();
-        String prefix = String.format("https://storage.cloud.google.com/%s/%s", bucketName, mediaForm.getTitle());
+        String prefix = String.format("https://storage.googleapis.com/%s/%s", bucketName, mediaForm.getTitle());
 
         logger.info("prefix:" + prefix);
         LocalDateTime timestamp = LocalDateTime.now();
@@ -124,6 +124,10 @@ public class CassandraMediaService {
         mediaRepository.deleteById(id);
     }
 
+
+    public void deleteAllMedia(){
+        mediaRepository.deleteAll();
+    }
 
     /**
      * Deletes all media entries with the specified title.
