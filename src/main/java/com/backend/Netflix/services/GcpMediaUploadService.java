@@ -114,7 +114,7 @@ public class GcpMediaUploadService {
         }
 
         // Return the playlist URL
-        return String.format("https://storage.cloud.google.com/%s/%s/%s/playlist.m3u8",
+        return String.format("https://storage.googleapis.com/%s/%s/%s/playlist.m3u8",
                 bucketName, fileName, hlsType);
     }
 
@@ -324,7 +324,7 @@ public class GcpMediaUploadService {
             }
 
             System.out.println("Wrote " + objectName + " to bucket " + bucketName + " using a WriteChannel.");
-            return String.format("https://storage.cloud.google.com/%s/%s", bucketName, objectName);
+            return String.format("https://storage.googleapis.com/%s/%s", bucketName, objectName);
         }
     }
 

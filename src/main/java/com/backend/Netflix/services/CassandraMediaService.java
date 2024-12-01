@@ -6,6 +6,7 @@ import com.backend.Netflix.model.MediaResponseDTO;
 import com.backend.Netflix.repository.MediaRepository;
 import com.google.firebase.database.DatabaseException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -21,6 +22,8 @@ import java.util.logging.Logger;
 public class CassandraMediaService {
     private static final Logger logger = Logger.getLogger(CassandraMediaService.class.getName());
 
+    @Value("${cloudBucketName}")
+    String bucketName;
 
     @Autowired
     private MediaRepository mediaRepository;
@@ -40,14 +43,11 @@ public class CassandraMediaService {
      */
     public MediaResponseDTO insertMedia(MediaRequestDTO mediaForm, Map<String, String> bucketPaths) throws IOException {
         logger.info("Received file upload request");
-        UUID id = UUID.randomUUID();
-        String filename = String.format(
-                        "%s.%s",
-                        mediaForm.getTitle(),
-                        Objects.requireNonNull(mediaForm.getVideoFile().getContentType()).split("/")[1])
-                        .replaceAll(" ", "_");
 
-        logger.info("Filename:" + filename);
+        UUID id = UUID.randomUUID();
+        String prefix = String.format("https://storage.cloud.google.com/%s/%s", bucketName, mediaForm.getTitle());
+
+        logger.info("prefix:" + prefix);
         LocalDateTime timestamp = LocalDateTime.now();
 
         MediaResponseDTO media = new MediaResponseDTO(
@@ -58,7 +58,7 @@ public class CassandraMediaService {
                         mediaForm.getYear(),
                         mediaForm.getPublisher(),
                         mediaForm.getDuration(),
-                        filename,
+                        prefix,
                         bucketPaths,
                         timestamp
                      );

@@ -21,7 +21,7 @@ public class MediaResponseDTO {
     private Integer year;
     private String publisher;
     private Integer duration;
-    private String filename;
+    private String prefix;
     private Map<String, String> bucketPaths;
     private LocalDateTime uploadTimestamp;
 }
