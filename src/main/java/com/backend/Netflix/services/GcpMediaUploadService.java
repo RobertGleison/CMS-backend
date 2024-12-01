@@ -44,6 +44,7 @@ public class GcpMediaUploadService {
      * @throws InterruptedException If the video conversion process is interrupted
      */
     public Map<String, String> upload(String title, MultipartFile videoFile, MultipartFile thumbnail) throws IOException, InterruptedException {
+        System.out.println("Enter in upload gcp service");
         Map<String, String> bucketPaths = new HashMap<>();
         bucketPaths.put("LD_default", uploadVideoLowDefinition(title, videoFile));
         bucketPaths.put("HD_default", uploadVideoHighDefinition(title, videoFile));
@@ -53,18 +54,47 @@ public class GcpMediaUploadService {
         return bucketPaths;
     }
 
+
+    /**
+     * Converts and uploads a video file to HLS format in high definition quality.
+     * @param fileName Base name for the file
+     * @param videoFile Video file to convert and upload
+     * @return Public URL of the uploaded HLS playlist
+     * @throws IOException If there's an error during conversion or upload
+     */
     public String uploadVideoHighDefinitionHLS(String fileName, MultipartFile videoFile) throws IOException {
+        System.out.println("Enter in upload HD HLSvideo");
         Map<String, byte[]> hlsFiles = convertToHLS(videoFile, "HD");
         return uploadHLSFiles(fileName, hlsFiles, "HD_HLS_video");
     }
 
+
+    /**
+     * Converts and uploads a video file to HLS format in low definition quality.
+     * @param fileName Base name for the file
+     * @param videoFile Video file to convert and upload
+     * @return Public URL of the uploaded HLS playlist
+     * @throws IOException If there's an error during conversion or upload
+     * @throws InterruptedException If the video conversion process is interrupted
+     */
     public String uploadVideoLowDefinitionHLS(String fileName, MultipartFile videoFile) throws IOException, InterruptedException {
+        System.out.println("Enter in upload LD HLS video");
         MultipartFile ldVideo = convertToLowDefinition(videoFile);
         Map<String, byte[]> hlsFiles = convertToHLS(ldVideo, "LD");
         return uploadHLSFiles(fileName, hlsFiles, "LD_HLS_video");
     }
 
+
+    /**
+     * Uploads HLS files (playlist and segments) to Google Cloud Storage.
+     * @param fileName Base name for the files
+     * @param hlsFiles Map containing HLS file names and their contents
+     * @param hlsType Type of HLS content (HD_HLS_video or LD_HLS_video)
+     * @return Public URL of the uploaded playlist file
+     * @throws IOException If there's an error during upload
+     */
     private String uploadHLSFiles(String fileName, Map<String, byte[]> hlsFiles, String hlsType) throws IOException {
+        System.out.println("Enter in upload HLS Files");
         Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();
 
         for (Map.Entry<String, byte[]> entry : hlsFiles.entrySet()) {
@@ -88,6 +118,12 @@ public class GcpMediaUploadService {
                 bucketName, fileName, hlsType);
     }
 
+
+    /**
+     * Determines the appropriate content type for HLS files.
+     * @param fileName Name of the file
+     * @return Content type string
+     */
     private String getContentType(String fileName) {
         if (fileName.endsWith(".m3u8")) {
             return "application/vnd.apple.mpegurl";
@@ -97,7 +133,16 @@ public class GcpMediaUploadService {
         return "application/octet-stream";
     }
 
+
+    /**
+     * Converts a video file to HLS format with specified quality settings.
+     * @param videoFile Video file to convert
+     * @param quality Quality level ("HD" or "LD")
+     * @return Map containing HLS file names and their contents
+     * @throws IOException If there's an error during conversion
+     */
     private Map<String, byte[]> convertToHLS(MultipartFile videoFile, String quality) throws IOException {
+        System.out.println("Converting to HLS");
         byte[] inputBytes = videoFile.getBytes();
         String tempDir = System.getProperty("java.io.tmpdir");
         String uniqueId = UUID.randomUUID().toString();
@@ -113,7 +158,7 @@ public class GcpMediaUploadService {
 
         try {
             String[] command = {
-                    "C:\\ffmpeg\\bin\\ffmpeg.exe",
+                    "ffmpeg",
                     "-i", inputPath.toString(),
                     "-map", "0:v:0",
                     "-map", "0:a:0",
@@ -172,6 +217,7 @@ public class GcpMediaUploadService {
         }
     }
 
+
     /**
      * Gets the file extension from a filename.
      * @param filename The filename to extract extension from
@@ -182,6 +228,7 @@ public class GcpMediaUploadService {
         int lastDotIndex = filename.lastIndexOf(".");
         return (lastDotIndex == -1) ? "" : filename.substring(lastDotIndex);
     }
+
 
     /**
      * Recursively deletes a directory and all its contents.
@@ -203,6 +250,7 @@ public class GcpMediaUploadService {
         }
     }
 
+
     /**
      * Uploads the high definition version of the video.
      * Creates a file path in format: {fileName}/HD_video.{extension}
@@ -212,6 +260,7 @@ public class GcpMediaUploadService {
      * @throws IOException If there's an error during upload
      */
     public String uploadVideoHighDefinition(String fileName, MultipartFile videoFile) throws IOException {
+        System.out.println("Enter in upload HD video");
         String bucketFileName = String.format("%s/%s_%s.%s", fileName, "HD", "video", Objects.requireNonNull(videoFile.getContentType()).split("/")[1]);
         return streamObjectUpload(bucketFileName, videoFile);
     }
@@ -227,6 +276,7 @@ public class GcpMediaUploadService {
      * @throws InterruptedException If the conversion process is interrupted
      */
     public String uploadVideoLowDefinition(String fileName, MultipartFile videoFile) throws IOException, InterruptedException {
+        System.out.println("Enter in upload LD video");
         String bucketFileName = String.format("%s/%s_%s.%s", fileName, "LD", "video", Objects.requireNonNull(videoFile.getContentType()).split("/")[1]);
         MultipartFile newFile = convertToLowDefinition(videoFile);
         return streamObjectUpload(bucketFileName, newFile);
@@ -242,6 +292,7 @@ public class GcpMediaUploadService {
      * @throws IOException If there's an error during upload
      */
     public String uploadImage(String fileName, MultipartFile thumbnail) throws IOException {
+        System.out.println("Enter in upload thumbnail");
         String bucketFileName = String.format("%s/%s_.%s", fileName, "thumbnail", Objects.requireNonNull(thumbnail.getContentType()).split("/")[1]);
         return streamObjectUpload(bucketFileName, thumbnail);
     }
@@ -256,6 +307,7 @@ public class GcpMediaUploadService {
      * @throws IOException If there's an error during upload
      */
     public String streamObjectUpload(String objectName, MultipartFile file) throws IOException {
+        System.out.println("StreamObjectUpload");
         Storage storage = StorageOptions.newBuilder().setProjectId(this.projectId).build().getService();
         BlobId blobId = BlobId.of(this.bucketName, objectName);
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
@@ -291,10 +343,11 @@ public class GcpMediaUploadService {
      * @throws RuntimeException If the FFmpeg process fails
      */
     public MultipartFile convertToLowDefinition(MultipartFile inputFile) throws IOException, InterruptedException {
+        System.out.println("Convert to Low definition");
         byte[] inputBytes = inputFile.getBytes();
 
         String[] command = {
-                "C:\\ffmpeg\\bin\\ffmpeg.exe",
+                "ffmpeg",
                 "-i", "pipe:0",
                 "-vf", "scale=640:360",
                 "-f", "mp4",
