@@ -42,7 +42,7 @@ public class GcpMediaUploadService {
 
     public Map<String, String> upload(String title, MultipartFile videoFile, MultipartFile thumbnail) throws IOException, InterruptedException {
         Map<String, String> bucketPaths = new HashMap<>();
-//        bucketPaths.put("360p", uploadVideoLowQuality(title, videoFile));
+        bucketPaths.put("360p", uploadVideoLowQuality(title, videoFile));
         bucketPaths.put("1080p", uploadVideoHighQuality(title, videoFile));
         bucketPaths.put("thumbnail", uploadImage(title, thumbnail));
         return bucketPaths;

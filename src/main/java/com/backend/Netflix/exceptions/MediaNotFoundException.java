@@ -12,7 +12,6 @@ public class MediaNotFoundException extends RuntimeException {
         super("Media with id " + id + " not found.");
     }
 
-    // Static factory methods
     public static MediaNotFoundException byId(UUID id) {
         return new MediaNotFoundException(id);
     }

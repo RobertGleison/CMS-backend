@@ -1,6 +1,6 @@
 package com.backend.Netflix.repository;
 
-import com.backend.Netflix.model.Media;
+import com.backend.Netflix.model.MediaResponseDTO;
 import org.springframework.data.cassandra.repository.AllowFiltering;
 import org.springframework.data.cassandra.repository.CassandraRepository;
 import org.springframework.data.cassandra.repository.Query;
@@ -11,16 +11,16 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface MediaRepository extends CassandraRepository<Media, UUID> {
+public interface MediaRepository extends CassandraRepository<MediaResponseDTO, UUID> {
 
     @Query("DELETE FROM media WHERE title = ?0")
     void deleteByTitle(String title);
 
     @AllowFiltering
-    Optional<List<Media>> findByGenre(String genre);
+    Optional<List<MediaResponseDTO>> findByGenre(String genre);
 
     @AllowFiltering
-    Optional<List<Media>> findByTitle(String title);
+    Optional<List<MediaResponseDTO>> findByTitle(String title);
 
-    Optional<List<Media>> findByTitleContaining(String title);
+    Optional<List<MediaResponseDTO>> findByTitleContaining(String title);
 }
