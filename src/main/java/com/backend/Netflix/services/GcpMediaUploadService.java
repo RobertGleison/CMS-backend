@@ -73,7 +73,7 @@ public class GcpMediaUploadService {
     public String uploadVideoHighDefinitionHLS(String fileName, MultipartFile videoFile) throws IOException {
         System.out.println("Enter in upload HD HLSvideo");
         Map<String, byte[]> hlsFiles = convertToHLS(videoFile, "HD");
-        return uploadHLSFiles(fileName, hlsFiles, "HD_HLS_video");
+        return uploadHLSFiles(fileName, hlsFiles, "HD_HLS");
     }
 
 
@@ -143,7 +143,7 @@ public class GcpMediaUploadService {
             );
 
             Map<String, byte[]> hlsFiles = convertToHLS(ldVideo, "LD");
-            return uploadHLSFiles(fileName, hlsFiles, "LD_HLS_video");
+            return uploadHLSFiles(fileName, hlsFiles, "LD_HLS");
 
         } finally {
             // Clean up
@@ -183,7 +183,7 @@ public class GcpMediaUploadService {
         }
 
         // Return the playlist URL
-        return String.format("https://storage.googleapis.com/%s/%s/%s/playlist.m3u8",
+        return String.format("https://storage.googleapis.com/%s/%s/%s/output.m3u8",
                 bucketName, fileName, hlsType);
     }
 
@@ -247,7 +247,7 @@ public class GcpMediaUploadService {
                     "-hls_playlist_type", "vod",
                     "-hls_list_size", "0",
                     "-hls_segment_filename", streamDir + "/data%d.ts",  // Use streamDir variable
-                    streamDir + "/playlist.m3u8"  // Use streamDir variable
+                    streamDir + "/output.m3u8"  // Use streamDir variable
             };
 
             ProcessBuilder processBuilder = new ProcessBuilder(command);
