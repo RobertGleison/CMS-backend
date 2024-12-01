@@ -1,7 +1,6 @@
 package com.backend.Netflix.model;
 
 import lombok.*;
-import org.springframework.data.cassandra.core.mapping.Table;
 import org.springframework.web.multipart.MultipartFile;
 
 
