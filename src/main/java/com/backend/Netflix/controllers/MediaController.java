@@ -1,13 +1,23 @@
 package com.backend.Netflix.controllers;
 
+import com.backend.Netflix.configs.FirebaseConfig;
 import com.backend.Netflix.model.MediaRequestDTO;
 import com.backend.Netflix.model.MediaResponseDTO;
 import com.backend.Netflix.services.CassandraMediaService;
 import com.backend.Netflix.services.GcpMediaDeleteService;
 import com.backend.Netflix.services.GcpMediaUploadService;
+import com.datastax.oss.protocol.internal.request.AuthResponse;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -24,6 +34,7 @@ import java.util.UUID;
 @RequestMapping("/media")
 public class MediaController {
 
+    private static final Logger logger = LoggerFactory.getLogger(FirebaseConfig.class);
 
     @Autowired
     private CassandraMediaService cassandraService;
@@ -35,6 +46,40 @@ public class MediaController {
 
     @Autowired
     private GcpMediaDeleteService gcpDelete;
+
+
+    @GetMapping("/testendpoint")
+    public ResponseEntity<String> testendpoint() {
+        logger.info("Test endpoint hit");
+        return ResponseEntity.ok("Server is running");
+    }
+
+
+
+    @PostMapping("/authenticate")
+    public ResponseEntity<String> authenticateRequest(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        logger.info("Received authentication request");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.error("No Bearer token provided or invalid format. Header: {}", authHeader);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("No Bearer token provided");
+        }
+
+        String token = authHeader.substring(7);
+        logger.info("Attempting to verify token");
+
+        try {
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
+            logger.info("Token verified successfully for user: {}", decodedToken.getUid());
+            return ResponseEntity.ok().build();
+        } catch (FirebaseAuthException e) {
+            logger.error("Token verification failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(e.getMessage());
+        }
+    }
+
 
 
     /**
@@ -127,7 +172,6 @@ public class MediaController {
     /**
      * Deletes all media entries with a specific title.
      * Removes both database entries and associated files from storage.
-     * @param title Title of the media items to delete
      * @return ResponseEntity with no content indicating successful deletion
      */
     @DeleteMapping

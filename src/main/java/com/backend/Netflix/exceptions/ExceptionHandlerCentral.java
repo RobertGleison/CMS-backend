@@ -1,6 +1,8 @@
 package com.backend.Netflix.exceptions;
 
+import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.database.DatabaseException;
+import jakarta.security.auth.message.AuthException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +54,26 @@ public class ExceptionHandlerCentral {
                 exception.getMessage(),
                 Instant.now(),
                 "Error with database communication.",
+                request.getRequestURI(),
+                statusCode);
+        return ResponseEntity.status(statusCode).body(responseException);
+    }
+
+
+    /**
+     * Handles exceptions when requested media content is not found.
+     * Returns a 404 NOT_FOUND status with detailed error information.
+     * @param exception The thrown MediaNotFoundException
+     * @param request The HTTP request that triggered the exception
+     * @return ResponseEntity containing standardized error details
+     */
+    @ExceptionHandler(FirebaseAuthException.class)
+    public ResponseEntity<StandardException> mediaNotFound(FirebaseAuthException exception, HttpServletRequest request) {
+        int statusCode = HttpStatus.NOT_FOUND.value();
+        StandardException responseException = new StandardException(
+                exception.getMessage(),
+                Instant.now(),
+                "Media not found",
                 request.getRequestURI(),
                 statusCode);
         return ResponseEntity.status(statusCode).body(responseException);
