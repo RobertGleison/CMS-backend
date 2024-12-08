@@ -88,24 +88,28 @@ public class GcpMediaUploadService {
     public String uploadVideoLowDefinitionHLS(String fileName, MultipartFile videoFile) throws IOException, InterruptedException {
         System.out.println("Enter in upload LD HLS video");
 
-        // Create a temporary directory for intermediate files
+        // Create temporary directory
         String tempDir = System.getProperty("java.io.tmpdir");
         String uniqueId = UUID.randomUUID().toString();
         String workingDir = tempDir + File.separator + uniqueId;
         Files.createDirectories(Paths.get(workingDir));
 
         try {
-            // First convert to low definition and save to temp file
+            // Save input file
+            Path inputPath = Paths.get(workingDir, "input.mp4");
             Path ldVideoPath = Paths.get(workingDir, "lowdef.mp4");
-            byte[] inputBytes = videoFile.getBytes();
+            Files.write(inputPath, videoFile.getBytes());
 
+            // Convert to low definition
             String[] command = {
                     "ffmpeg",
-                    "-i", "pipe:0",
+                    "-i", inputPath.toString(),
                     "-vf", "scale=640:360",
                     "-c:v", "libx264",
                     "-preset", "ultrafast",
-                    "-c:a", "aac",
+                    "-c:a", "aac",              // Keep audio codec
+                    "-ar", "44100",             // Audio sample rate
+                    "-b:a", "128k",             // Audio bitrate
                     "-movflags", "+faststart",
                     "-y",
                     ldVideoPath.toString()
@@ -115,13 +119,7 @@ public class GcpMediaUploadService {
             processBuilder.redirectErrorStream(true);
             Process process = processBuilder.start();
 
-            // Write input
-            try (OutputStream outputStream = process.getOutputStream()) {
-                outputStream.write(inputBytes);
-                outputStream.flush();
-            }
-
-            // Read process output for logging
+            // Log FFmpeg output
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
@@ -134,7 +132,7 @@ public class GcpMediaUploadService {
                 throw new RuntimeException("Error converting to low definition: " + exitCode);
             }
 
-            // Now convert the low definition file to HLS
+            // Convert to HLS
             MultipartFile ldVideo = new MockMultipartFile(
                     "lowdef.mp4",
                     "lowdef.mp4",
@@ -183,7 +181,7 @@ public class GcpMediaUploadService {
         }
 
         // Return the playlist URL
-        return String.format("https://storage.googleapis.com/%s/%s/%s/output.m3u8",
+        return String.format("https://storage.cloud.google.com/%s/%s/%s/output.m3u8",
                 bucketName, fileName, hlsType);
     }
 
@@ -232,7 +230,7 @@ public class GcpMediaUploadService {
                     "ffmpeg",
                     "-i", inputPath.toString(),
                     "-map", "0:v:0",
-                    "-map", "0:a:0",
+                    "-map", "0:a:0?",         // Optional audio mapping with ?
                     "-c:v", "libx264",
                     "-b:v", quality.equals("HD") ? "2800k" : "800k",
                     "-maxrate", quality.equals("HD") ? "3000k" : "856k",
@@ -393,7 +391,7 @@ public class GcpMediaUploadService {
             }
 
             System.out.println("Wrote " + objectName + " to bucket " + bucketName + " using a WriteChannel.");
-            return String.format("https://storage.googleapis.com/%s/%s", bucketName, objectName);
+            return String.format("https://storage.cloud.google.com/%s/%s", bucketName, objectName);
         }
     }
 
@@ -427,57 +425,68 @@ public class GcpMediaUploadService {
      */
     public MultipartFile convertToLowDefinition(MultipartFile inputFile) throws IOException, InterruptedException {
         System.out.println("Converting to Low definition");
-        byte[] inputBytes = inputFile.getBytes();
 
-        String[] command = {
-                "ffmpeg",
-                "-i", "pipe:0",
-                "-vf", "scale=640:360",
-                "-f", "mp4",
-                "-vcodec", "libx264",
-                "-preset", "ultrafast",  // Changed from 'fast' to 'ultrafast'
-                "-threads", "0",         // Use optimal number of threads
-                "-movflags", "frag_keyframe+empty_moov+faststart",
-                "-y",                    // Overwrite output files without asking
-                "pipe:1"
-        };
+        // Create temporary directory and files
+        String tempDir = System.getProperty("java.io.tmpdir");
+        String uniqueId = UUID.randomUUID().toString();
+        Path workingDir = Paths.get(tempDir, uniqueId);
+        Files.createDirectories(workingDir);
 
-        ProcessBuilder processBuilder = new ProcessBuilder(command);
-        processBuilder.redirectErrorStream(true);
-        Process process = processBuilder.start();
+        Path inputPath = workingDir.resolve("input.mp4");
+        Path outputPath = workingDir.resolve("output.mp4");
 
-        // Start a separate thread for writing input
-        Thread inputThread = new Thread(() -> {
-            try (OutputStream outputStream = process.getOutputStream()) {
-                outputStream.write(inputBytes);
-                outputStream.flush();
+        try {
+            // Write input file
+            Files.write(inputPath, inputFile.getBytes());
+
+            String[] command = {
+                    "ffmpeg",
+                    "-i", inputPath.toString(),
+                    "-vf", "scale=640:360",
+                    "-c:v", "libx264",
+                    "-preset", "ultrafast",
+                    "-threads", "0",
+                    "-movflags", "+faststart",
+                    "-y",
+                    outputPath.toString()
+            };
+
+            ProcessBuilder processBuilder = new ProcessBuilder(command);
+            processBuilder.redirectErrorStream(true);
+            Process process = processBuilder.start();
+
+            // Log FFmpeg output
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    System.out.println(line);
+                }
+            }
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new RuntimeException("Error processing video with FFmpeg: Exit code " + exitCode);
+            }
+
+            // Read the output file
+            byte[] outputBytes = Files.readAllBytes(outputPath);
+
+            return new MockMultipartFile(
+                    "converted.mp4",
+                    "converted.mp4",
+                    "video/mp4",
+                    outputBytes
+            );
+
+        } finally {
+            // Clean up temporary files
+            try {
+                Files.deleteIfExists(inputPath);
+                Files.deleteIfExists(outputPath);
+                Files.deleteIfExists(workingDir);
             } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-        inputThread.start();
-
-        // Read the output with a larger buffer
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        try (InputStream processInput = process.getInputStream()) {
-            byte[] buffer = new byte[8192 * 8]; // Increased buffer size to 64KB
-            int bytesRead;
-            while ((bytesRead = processInput.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, bytesRead);
+                System.err.println("Error cleaning up temporary files: " + e.getMessage());
             }
         }
-
-        inputThread.join();
-        int exitCode = process.waitFor();
-        if (exitCode != 0) {
-            throw new RuntimeException("Error processing video with FFmpeg: Exit code " + exitCode);
-        }
-
-        return new MockMultipartFile(
-                "converted.mp4",
-                "converted.mp4",
-                "video/mp4",
-                outputStream.toByteArray()
-        );
     }
 }

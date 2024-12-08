@@ -92,9 +92,13 @@ public class MediaController {
      */
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
     public ResponseEntity<MediaResponseDTO> processMedia(@ModelAttribute @RequestBody MediaRequestDTO mediaForm) throws IOException, InterruptedException {
+        logger.info("At upload");
+        logger.info("Inserting on bucket");
         Map<String, String> bucketPaths = gcpService.upload(mediaForm.getTitle(), mediaForm.getVideoFile(), mediaForm.getThumbnail());
-
+        logger.info("Successfully inserted on bucket");
+        logger.info("Inserting on Cassandra");
         MediaResponseDTO response = cassandraService.insertMedia(mediaForm, bucketPaths);
+        logger.info("Successfully inserted on cassandra");
         URI uri = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
         return ResponseEntity.created(uri).body(response);
     }
