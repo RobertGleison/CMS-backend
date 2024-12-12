@@ -68,6 +68,7 @@ public class MediaController {
 
         String token = authHeader.substring(7);
         logger.info("Attempting to verify token");
+        logger.info("Token: {}", token);
 
         try {
             FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
