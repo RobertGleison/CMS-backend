@@ -80,7 +80,8 @@ public class CassandraMediaService {
 
 
     public boolean ifMediaExists(String movieTitle) {
-        return mediaRepository.findByTitle(movieTitle).isPresent();
+        Optional<List<MediaResponseDTO>> result = mediaRepository.findByTitle(movieTitle);
+        return result.isPresent() && !result.get().isEmpty();
     }
 
 

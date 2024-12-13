@@ -2,76 +2,61 @@ package com.backend.Netflix.services;
 
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
-import com.google.cloud.storage.StorageOptions;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import java.util.logging.Logger;
-
-import com.google.cloud.storage.Blob;
-import com.google.cloud.storage.Storage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
 import java.util.logging.Logger;
 
-/**
- * Service responsible for deleting media files and folders from Google Cloud Storage.
- */
 @Service
 public class GcpMediaDeleteService {
     private static final Logger logger = Logger.getLogger(GcpMediaDeleteService.class.getName());
 
     private final Storage storage;
-    private final String projectId;
     private final String bucketName;
 
     @Autowired
     public GcpMediaDeleteService(
             Storage storage,
-            @Value("${cloudProjectId}") String projectId,
             @Value("${cloudBucketName}") String bucketName) {
         this.storage = storage;
-        this.projectId = projectId;
         this.bucketName = bucketName;
     }
 
     /**
-     * Deletes a specific file from Google Cloud Storage.
-     * Uses generation matching precondition to prevent race conditions.
-     * Logs the deletion operation status.
-     * @param fileName The complete path and name of the file to delete within the bucket
+     * Deletes all files in a movie folder based on the movie title.
+     * Folder structure example: "Avatar/video.mp4", "Avatar/thumbnail.jpg"
+     * @param movieTitle The movie title which is used as the folder name
      */
-    public void deleteMovieFile(String fileName) {
-        Blob blob = storage.get(bucketName, fileName);
-        if (blob == null) {
-            logger.info("!!!! Object " + fileName + " was not found in " + bucketName);
-            return;
-        }
+    public void deleteMediaByTitle(String movieTitle) {
+        String folderPrefix = movieTitle.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase();
+        String folderPath = folderPrefix + "/";
 
-        // Generation-match precondition to prevent race conditions and data corruptions
-        Storage.BlobSourceOption precondition = Storage.BlobSourceOption.generationMatch(blob.getGeneration());
+        logger.info("Starting deletion of movie folder: " + folderPath);
 
-        storage.delete(bucketName, fileName, precondition);
-        logger.info("Object " + blob.getName() + " was deleted from " + bucketName);
-    }
-
-    /**
-     * Deletes an entire movie folder and all its contents from Google Cloud Storage.
-     * This includes all quality versions of the video and the thumbnail.
-     * Iterates through all objects with the specified movie title prefix.
-     * @param movieTitle The title of the movie, which is used as the folder name in storage
-     *                  Expected folder structure: {movieTitle}/[HD_video.mp4, LD_video.mp4, thumbnail.jpg]
-     */
-    public void deleteMovieFolder(String movieTitle) {
+        // First delete all files in the folder
         for (Blob blob : storage.list(
                         bucketName,
-                        Storage.BlobListOption.currentDirectory(),
-                        Storage.BlobListOption.prefix(movieTitle + "/"))
+                        Storage.BlobListOption.prefix(folderPath))
                 .iterateAll()) {
-            blob.delete();
-            logger.info("Object " + blob.getName() + " was deleted from " + bucketName);
+            try {
+                blob.delete();
+                logger.info("Deleted file: " + blob.getName());
+            } catch (Exception e) {
+                logger.warning("Failed to delete file: " + blob.getName() + ". Error: " + e.getMessage());
+            }
         }
+
+        // Now delete the empty folder itself
+        Blob folderBlob = storage.get(bucketName, folderPath);
+        if (folderBlob != null) {
+            try {
+                folderBlob.delete();
+                logger.info("Deleted empty folder: " + folderPath);
+            } catch (Exception e) {
+                logger.warning("Failed to delete empty folder: " + folderPath + ". Error: " + e.getMessage());
+            }
+        }
+
+        logger.info("Completed deletion of movie folder and its contents: " + folderPath);
     }
 }

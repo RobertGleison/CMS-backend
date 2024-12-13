@@ -174,6 +174,7 @@ public class MediaController {
     @DeleteMapping("/title/{title}")
     public ResponseEntity<Void> deleteByTitle(@PathVariable String title) {
         cassandraService.deleteMediaByTitle(title);
+        gcpDelete.deleteMediaByTitle(title);
         return ResponseEntity.noContent().build();
     }
 
