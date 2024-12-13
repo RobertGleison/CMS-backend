@@ -53,6 +53,7 @@ public class GcpMediaUploadService {
      */
     public Map<String, String> upload(String title, MultipartFile videoFile, MultipartFile thumbnail) throws IOException, InterruptedException {
         System.out.println("Enter in upload gcp service");
+        title = title.replaceAll("[^a-zA-Z0-9]", "_");
         Map<String, String> bucketPaths = new HashMap<>();
         bucketPaths.put("LD_default", uploadVideoLowDefinition(title, videoFile));
         bucketPaths.put("HD_default", uploadVideoHighDefinition(title, videoFile));
