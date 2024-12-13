@@ -92,7 +92,11 @@ public class MediaController {
      * @throws InterruptedException if the upload process is interrupted
      */
     @PostMapping(value = "/upload", consumes = {MediaType.MULTIPART_FORM_DATA_VALUE})
-    public ResponseEntity<MediaResponseDTO> processMedia(@ModelAttribute @RequestBody MediaRequestDTO mediaForm) throws IOException, InterruptedException {
+    public ResponseEntity<?> processMedia(@ModelAttribute @RequestBody MediaRequestDTO mediaForm) throws IOException, InterruptedException {
+        boolean ifExists = cassandraService.ifMediaExists(mediaForm.getTitle());
+        if (ifExists) {
+            return ResponseEntity.badRequest().body("Media already exists");
+        }
         logger.info("At upload");
         logger.info("Inserting on bucket");
         Map<String, String> bucketPaths = gcpService.upload(mediaForm.getTitle(), mediaForm.getVideoFile(), mediaForm.getThumbnail());

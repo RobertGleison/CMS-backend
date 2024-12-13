@@ -79,6 +79,11 @@ public class CassandraMediaService {
     }
 
 
+    public boolean ifMediaExists(String movieTitle) {
+        return mediaRepository.findByTitle(movieTitle).isPresent();
+    }
+
+
     /**
      * Retrieves a specific media entry by its UUID.
      * @param id UUID of the media to retrieve

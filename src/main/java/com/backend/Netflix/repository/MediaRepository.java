@@ -23,4 +23,5 @@ public interface MediaRepository extends CassandraRepository<MediaResponseDTO, U
     Optional<List<MediaResponseDTO>> findByTitle(String title);
 
     Optional<List<MediaResponseDTO>> findByTitleContaining(String title);
+
 }
