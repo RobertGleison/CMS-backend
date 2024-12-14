@@ -1,8 +1,9 @@
 package com.backend.Netflix.Torrent;
 
-import org.libtorrent4j.*;
-import org.libtorrent4j.alerts.Alert;
-import org.springframework.web.multipart.MultipartFile;
+
+import com.frostwire.jlibtorrent.*;
+import com.frostwire.jlibtorrent.alerts.Alert;
+
 
 import java.io.File;
 import java.io.IOException;
