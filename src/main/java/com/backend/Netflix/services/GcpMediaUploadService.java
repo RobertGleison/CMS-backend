@@ -1,5 +1,6 @@
 package com.backend.Netflix.services;
 
+import com.backend.Netflix.NetflixApplication;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,6 +61,8 @@ public class GcpMediaUploadService {
         bucketPaths.put("thumbnail", uploadImage(title, thumbnail));
         bucketPaths.put("HD_HLS", uploadVideoHighDefinitionHLS(title, videoFile));
         bucketPaths.put("LD_HLS", uploadVideoLowDefinitionHLS(title, videoFile));
+        bucketPaths.put("HD_torrent", createTorrent(title, true));
+        bucketPaths.put("LD_torrent", createTorrent(title, false));
         return bucketPaths;
     }
 
@@ -490,4 +493,27 @@ public class GcpMediaUploadService {
             }
         }
     }
+    private String createTorrent(String movieName, boolean isHighDefinition) throws IOException {
+        String filename;
+        String videoExtension = ".x-msvideo";
+        if (isHighDefinition) {
+            filename = "HD_video";
+        }
+        else {
+            filename = "LD_video";
+        }
+        String bucketPath = String.format("%s/%s", movieName, filename);
+        String localPath = "/mnt/bucket/" + bucketPath;
+        // Use the injected storage client instead of creating a new one
+        BlobId blobId = BlobId.of(bucketName, bucketPath + videoExtension);
+        BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+        try (WriteChannel writer = storage.writer(blobInfo)) {
+            byte[] torrent = NetflixApplication.torrentManager.createTorrent(new File(localPath + videoExtension));
+            ByteBuffer buffer = ByteBuffer.wrap(torrent);
+            writer.write(buffer);
+        }
+        System.out.println("Wrote " + bucketPath + " to bucket " + bucketName + " using a WriteChannel.");
+        return String.format("https://storage.cloud.google.com/%s/%s", bucketName, bucketPath + ".torrent");
+    }
 }
+

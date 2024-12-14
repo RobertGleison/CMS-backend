@@ -2,6 +2,7 @@ package com.backend.Netflix.Torrent;
 
 import org.libtorrent4j.*;
 import org.libtorrent4j.alerts.Alert;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +32,7 @@ public class TorrentManager {
     }
     //moviePath é o caminho do arquivo mp4 a ser convertido está no bucket mas montaremos o bucket em /mnt/bucket
     // então será algo do tipo /mnt/bucket/avatar/avatarHD.mp4
-    public File createTorrent(File moviePath, String outputFileName) {
+    public byte[] createTorrent(File moviePath) {
         TorrentBuilder torrentBuilder = new TorrentBuilder().addTracker(trackerIP).setPrivate(true).path(moviePath);
         byte[] torrent;
         try {
@@ -40,19 +41,12 @@ public class TorrentManager {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        File outfile;
-        Path outputPath = Path.of(moviePath.getParentFile().toString(), outputFileName + ".torrent");
         TorrentInfo ti = new TorrentInfo(torrent);
         sessionManager.download(ti, moviePath);
         TorrentHandle handle = sessionManager.find(ti.infoHash());
         RunningTorrents.add(handle);
         handle.forceReannounce(1);
-        try {
-            outfile = Files.write(outputPath,torrent).toFile();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return  outfile;
+        return torrent;
     }
     public  void reannounceAllTorrents(){
         for (TorrentHandle handle : RunningTorrents){
