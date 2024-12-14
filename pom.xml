@@ -83,6 +83,13 @@
 			<artifactId>ffmpeg</artifactId>
 			<version>0.8.0</version>
 		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.libtorrent4j/libtorrent4j -->
+		<dependency>
+			<groupId>org.libtorrent4j</groupId>
+			<artifactId>libtorrent4j</artifactId>
+			<version>2.1.0-35</version>
+		</dependency>
+
 
 		<!-- Testing -->
 		<dependency>
