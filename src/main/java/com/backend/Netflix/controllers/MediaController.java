@@ -54,6 +54,32 @@ public class MediaController {
         return ResponseEntity.ok("Server is running");
     }
 
+    @GetMapping("/authenticate")
+    public ResponseEntity<String> authenticatePackages(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        logger.info("Received authentication request");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            logger.error("No Bearer token provided or invalid format. Header: {}", authHeader);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("No Bearer token provided");
+        }
+
+        String token = authHeader.substring(7);
+        logger.info("Attempting to verify token");
+        logger.info("Token: {}", token);
+
+
+        try {
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
+            logger.info("Token verified successfully for user: {}", decodedToken.getUid());
+            return ResponseEntity.ok().build();
+        } catch (FirebaseAuthException e) {
+            logger.error("Token verification failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(e.getMessage());
+        }
+
+    }
 
 
     @PostMapping("/authenticate")
@@ -69,6 +95,7 @@ public class MediaController {
         String token = authHeader.substring(7);
         logger.info("Attempting to verify token");
         logger.info("Token: {}", token);
+
 
         try {
             FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(token);
