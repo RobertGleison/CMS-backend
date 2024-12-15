@@ -14,6 +14,7 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.SQLOutput;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -494,26 +495,35 @@ public class GcpMediaUploadService {
         }
     }
     private String createTorrent(String movieName, boolean isHighDefinition) throws IOException {
+        System.out.println("Enter in create torrent");
         String filename;
-        String videoExtension = ".x-msvideo";
+        String videoExtension = ".mp4";
         if (isHighDefinition) {
             filename = "HD_video";
         }
         else {
             filename = "LD_video";
         }
+        // movie: avatar
+        // buketPath: avatar/HD_video
         String bucketPath = String.format("%s/%s", movieName, filename);
+        System.out.println("bucketpath: " + bucketPath);
+        // localPath: /mnt/bucket/avatar/HD_video
         String localPath = "/mnt/bucket/" + bucketPath;
+        System.out.println("localpath: " + localPath);
         // Use the injected storage client instead of creating a new one
-        BlobId blobId = BlobId.of(bucketName, bucketPath + videoExtension);
+        BlobId blobId = BlobId.of(bucketName, bucketPath + ".torrent");
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
         try (WriteChannel writer = storage.writer(blobInfo)) {
-            byte[] torrent = NetflixApplication.torrentManager.createTorrent(new File(localPath + videoExtension));
+            // localPath: /mnt/bucket/avatar/HD_video.mp4
+            byte[] torrent = NetflixApplication.torrentManager.createTorrent(bucketPath, movieName + videoExtension);
             ByteBuffer buffer = ByteBuffer.wrap(torrent);
             writer.write(buffer);
         }
         System.out.println("Wrote " + bucketPath + " to bucket " + bucketName + " using a WriteChannel.");
-        return String.format("https://storage.cloud.google.com/%s/%s", bucketName, bucketPath + ".torrent");
+        String result = String.format("https://storage.cloud.google.com/%s/%s", bucketName, bucketPath + ".torrent");
+        System.out.println("result file: " + result);
+        return result;
     }
 }
 

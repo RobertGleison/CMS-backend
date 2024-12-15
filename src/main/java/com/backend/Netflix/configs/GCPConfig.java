@@ -7,6 +7,9 @@ import com.google.cloud.storage.Storage;  // Changed import
 import com.google.cloud.storage.StorageOptions;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -14,14 +17,19 @@ import java.io.IOException;
 @Configuration
 public class GCPConfig {
 
-    @Value("${gcp.credentials.location}")  // Removed default value here
+    @Value("${gcp.credentials.location}")
     private String credentialsLocation;
+
+    @Value("${cloudProjectId}")  // Add this to properly inject project ID
+    private String projectId;
 
     @Bean
     public CredentialsProvider googleCredentials() throws IOException {
         try {
+            // Use ClassPathResource to load from classpath
+            Resource resource = new ClassPathResource(credentialsLocation);
             GoogleCredentials credentials = GoogleCredentials.fromStream(
-                    new FileInputStream(credentialsLocation)
+                    resource.getInputStream()
             );
             return () -> credentials;
         } catch (IOException e) {
@@ -33,8 +41,8 @@ public class GCPConfig {
     public Storage googleCloudStorage(CredentialsProvider credentialsProvider) throws IOException {
         StorageOptions options = StorageOptions.newBuilder()
                 .setCredentials(credentialsProvider.getCredentials())
-                .setProjectId("${cloudProjectId}")  // Add project ID
+                .setProjectId(projectId)  // Use injected project ID
                 .build();
-        return options.getService();  // Removed casting
+        return options.getService();
     }
 }

@@ -84,12 +84,38 @@
 			<version>0.8.0</version>
 		</dependency>
 
+		<dependency>
+			<groupId>com.frostwire</groupId>
+			<artifactId>jlibtorrent-linux</artifactId>
+			<version>1.2.0.18</version>
+		</dependency>
+
+<!--		<dependency>-->
+<!--			<groupId>com.frostwire</groupId>-->
+<!--			<artifactId>jlibtorrent</artifactId>-->
+<!--			<version>1.0</version>-->
+<!--			<scope>system</scope>-->
+<!--			<systemPath>${project.basedir}/lib/jlibtorrent-linux-1.2.19.0.jar</systemPath>-->
+<!--		</dependency>-->
+
+<!--		<dependency>-->
+<!--			<groupId>com.frostwire</groupId>-->
+<!--			<artifactId>jlibtorrent</artifactId>-->
+<!--			<version>1.0</version>-->
+<!--			<scope>system</scope>-->
+<!--			<systemPath>${project.basedir}/lib/jlibtorrent-1.2.19.0.jar</systemPath>-->
+<!--		</dependency>-->
 
 		<!-- Testing -->
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-test</artifactId>
 			<version>5.3.29</version>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 	<dependencyManagement>
