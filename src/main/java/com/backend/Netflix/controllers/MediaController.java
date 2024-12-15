@@ -1,28 +1,29 @@
 package com.backend.Netflix.controllers;
 
+import com.backend.Netflix.NetflixApplication;
 import com.backend.Netflix.configs.FirebaseConfig;
 import com.backend.Netflix.model.MediaRequestDTO;
 import com.backend.Netflix.model.MediaResponseDTO;
 import com.backend.Netflix.services.CassandraMediaService;
 import com.backend.Netflix.services.GcpMediaDeleteService;
 import com.backend.Netflix.services.GcpMediaUploadService;
-import com.datastax.oss.protocol.internal.request.AuthResponse;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -54,6 +55,60 @@ public class MediaController {
         return ResponseEntity.ok("Server is running");
     }
 
+    @PostMapping("/announceAll")
+    public ResponseEntity<String> reannouceAll() {
+        NetflixApplication.torrentManager.reannounceAllTorrents();
+        return ResponseEntity.ok("All Torrents announced");
+    }
+
+    @PostMapping("/runAllTorrent")
+    public ResponseEntity<String> runAllTorrent(){
+        List<String> Titles = cassandraService.getTitles();
+        for (String title : Titles) {
+            runTorrent(title);
+        }
+        return ResponseEntity.ok("All Torrents are running");
+    }
+
+
+    @PostMapping("/runTorrent/{title}")
+    public ResponseEntity<String> runTorrent(@PathVariable String title) {
+        Path dirpath = Paths.get("/mnt/bucket" + title);
+        Path HDfilepath = Paths.get(dirpath.toString(), "HD_video.torrent");
+        Path LDfilepath = Paths.get(dirpath.toString(), "LD_video.torrent");
+        System.out.println("Running torrent for: " + title);
+        if (Files.notExists(HDfilepath)){
+            try {
+                gcpService.createTorrent(title, true);
+                System.out.println("HD Torrent file created");
+            } catch (IOException e) {
+                System.out.println("Error creating HD torrent file" + e.getMessage());
+            }
+        }else {
+            NetflixApplication.torrentManager.addTorrent(dirpath, HDfilepath);
+            System.out.println("HD torrent added");
+        }
+        if (Files.notExists(LDfilepath)){
+            try {
+                gcpService.createTorrent(title, false);
+                System.out.println("LD Torrent file created");
+            } catch (IOException e) {
+                System.out.println("Error creating LD torrent file" + e.getMessage());
+            }
+        }else {
+            NetflixApplication.torrentManager.addTorrent(dirpath, HDfilepath);
+            System.out.println("LD torrent added");
+        }
+        return ResponseEntity.ok("Torrent is now Running");
+    }
+
+
+//    @DeleteMapping("/title/{title}")
+//    public ResponseEntity<Void> deleteByTitle(@PathVariable String title) {
+//        cassandraService.deleteMediaByTitle(title);
+//        gcpDelete.deleteMediaByTitle(title);
+//        return ResponseEntity.noContent().build();
+//    }
 
 
     @PostMapping("/authenticate")

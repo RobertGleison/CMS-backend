@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * Service class to handle media-related operations with Cassandra database.
@@ -115,6 +116,10 @@ public class CassandraMediaService {
      */
     public List<MediaResponseDTO> getMediaByGenre(String genre) {
         return mediaRepository.findByGenre(genre).orElseThrow(() -> MediaNotFoundException.byGenre(genre));
+    }
+
+    public List<String> getTitles(){
+        return mediaRepository.findAll().stream().map(MediaResponseDTO::getTitle).toList();
     }
 
 

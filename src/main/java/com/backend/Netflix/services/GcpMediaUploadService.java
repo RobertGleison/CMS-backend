@@ -494,7 +494,7 @@ public class GcpMediaUploadService {
             }
         }
     }
-    private String createTorrent(String movieName, boolean isHighDefinition) throws IOException {
+    public String createTorrent(String movieName, boolean isHighDefinition) throws IOException {
         System.out.println("Enter in create torrent");
         // avatar
         String filename;
@@ -526,5 +526,6 @@ public class GcpMediaUploadService {
         System.out.println("result file: " + result);
         return result;
     }
+
 }
 

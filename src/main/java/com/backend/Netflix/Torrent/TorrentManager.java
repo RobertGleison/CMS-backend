@@ -27,7 +27,7 @@ public class TorrentManager {
 
             @Override
             public void alert(Alert<?> alert) {
-                System.out.println(alert);
+                System.out.println("Torrent alerts: " + alert);
             }
         });
         sessionManager.start();
@@ -55,6 +55,12 @@ public class TorrentManager {
         RunningTorrents.add(handle);
         handle.forceReannounce(1);
         return torrent;
+    }
+
+    public void addTorrent(Path workingDir, Path torrentPath) {
+        File torrentFile = torrentPath.toFile();
+        TorrentInfo ti = new TorrentInfo(torrentFile);
+        sessionManager.download(ti, workingDir.toFile());
     }
 
     public  void reannounceAllTorrents(){
