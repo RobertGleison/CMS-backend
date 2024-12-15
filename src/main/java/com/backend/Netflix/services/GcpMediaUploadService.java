@@ -496,6 +496,7 @@ public class GcpMediaUploadService {
     }
     private String createTorrent(String movieName, boolean isHighDefinition) throws IOException {
         System.out.println("Enter in create torrent");
+        // avatar
         String filename;
         String videoExtension = ".mp4";
         if (isHighDefinition) {
@@ -504,24 +505,24 @@ public class GcpMediaUploadService {
         else {
             filename = "LD_video";
         }
-        // movie: avatar
-        // buketPath: avatar/HD_video
-        String bucketPath = String.format("%s/%s", movieName, filename);
-        System.out.println("bucketpath: " + bucketPath);
-        // localPath: /mnt/bucket/avatar/HD_video
-        String localPath = "/mnt/bucket/" + bucketPath;
-        System.out.println("localpath: " + localPath);
-        // Use the injected storage client instead of creating a new one
-        BlobId blobId = BlobId.of(bucketName, bucketPath + ".torrent");
+
+        String localPath = "/mnt/bucket/" + movieName;
+
+        BlobId blobId = BlobId.of(bucketName, movieName + "/" + filename + ".torrent");
         BlobInfo blobInfo = BlobInfo.newBuilder(blobId).build();
+
         try (WriteChannel writer = storage.writer(blobInfo)) {
-            // localPath: /mnt/bucket/avatar/HD_video.mp4
-            byte[] torrent = NetflixApplication.torrentManager.createTorrent(bucketPath, movieName + videoExtension);
+            // localPath tem que ser: mnt/bucket/avatar
+            // moviename tem que ser HD_video.mp4
+
+            movieName = filename + videoExtension;
+            byte[] torrent = NetflixApplication.torrentManager.createTorrent(localPath, movieName);
             ByteBuffer buffer = ByteBuffer.wrap(torrent);
             writer.write(buffer);
         }
-        System.out.println("Wrote " + bucketPath + " to bucket " + bucketName + " using a WriteChannel.");
-        String result = String.format("https://storage.cloud.google.com/%s/%s", bucketName, bucketPath + ".torrent");
+        System.out.println("Wrote " + localPath + " to bucket " + bucketName + " using a WriteChannel.");
+        String result = String.format("https://storage.cloud.google.com/%s/%s/%s", bucketName, movieName, filename + ".torrent");
+        // https://storage.cloud.google.com/netflixplus-library-cc2024/testerobert4/LD_video.mp4
         System.out.println("result file: " + result);
         return result;
     }

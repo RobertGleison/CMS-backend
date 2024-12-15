@@ -32,10 +32,15 @@ public class TorrentManager {
         });
         sessionManager.start();
     }
-    //moviePath é o caminho do arquivo mp4 a ser convertido está no bucket mas montaremos o bucket em /mnt/bucket
-    // então será algo do tipo /mnt/bucket/avatar/avatarHD.mp4
+
+
+    // dirpath tem que ser: mnt/bucket/avatar
+    // moviename tem que ser HD_video.mp4
     public byte[] createTorrent(String dirPath, String moviename) {
+        System.out.println("Enter in create torrent of TorrentManager");
+        //moviepath: /mnt/bucket/avatar/HD_video.mp4
         File moviePath = new File(dirPath, moviename);
+        System.out.println("movie: " + moviePath);
         TorrentBuilder torrentBuilder = new TorrentBuilder().addTracker(trackerIP).setPrivate(true).path(moviePath);
         byte[] torrent;
         try {
