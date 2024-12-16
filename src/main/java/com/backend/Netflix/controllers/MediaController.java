@@ -56,7 +56,7 @@ public class MediaController {
     }
 
     @PostMapping("/announceAll")
-    public ResponseEntity<String> reannouceAll() {
+    public ResponseEntity<String> announceAll() {
         NetflixApplication.torrentManager.reannounceAllTorrents();
         return ResponseEntity.ok("All Torrents announced");
     }
@@ -65,7 +65,8 @@ public class MediaController {
     public ResponseEntity<String> runAllTorrent(){
         List<String> Titles = cassandraService.getTitles();
         for (String title : Titles) {
-            runTorrent(title);
+            String convertedTitle = title.replaceAll("[^a-zA-Z0-9]", "_").toLowerCase();
+            runTorrent(convertedTitle);
         }
         return ResponseEntity.ok("All Torrents are running");
     }

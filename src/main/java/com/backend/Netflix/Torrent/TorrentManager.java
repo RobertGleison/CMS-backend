@@ -15,10 +15,11 @@ import  java.nio.file.Files;
 public class TorrentManager {
     public SessionManager sessionManager;
     List<TorrentHandle> RunningTorrents = new ArrayList<TorrentHandle>();
-    String trackerIP = "http://netflixppup.duckdns.org:8000/announce";
+    String trackerUrl = "http://netflixppup.duckdns.org:8000/announce";
+    String localUrl = "http://localhost:8000/announce";
     public TorrentManager(){
         sessionManager = new SessionManager();
-
+        sessionManager.stopDht();
         sessionManager.addListener(new AlertListener() {
             @Override
             public int[] types() {
@@ -41,7 +42,7 @@ public class TorrentManager {
         //moviepath: /mnt/bucket/avatar/HD_video.mp4
         File moviePath = new File(dirPath, moviename);
         System.out.println("movie: " + moviePath);
-        TorrentBuilder torrentBuilder = new TorrentBuilder().addTracker(trackerIP).setPrivate(true).path(moviePath);
+        TorrentBuilder torrentBuilder = new TorrentBuilder().addTracker(trackerUrl).setPrivate(true).path(moviePath).addTracker(localUrl);
         byte[] torrent;
         try {
             TorrentBuilder.Result result = torrentBuilder.generate();
@@ -65,7 +66,11 @@ public class TorrentManager {
 
     public  void reannounceAllTorrents(){
         for (TorrentHandle handle : RunningTorrents){
-            handle.forceReannounce();
+            try {
+                handle.forceReannounce();
+            } catch (Exception e){
+                System.out.println(e.getMessage());
+            }
         }
     }
 
